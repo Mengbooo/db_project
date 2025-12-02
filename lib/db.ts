@@ -171,6 +171,32 @@ export const getReaderOrderHistory = () => {
   return history;
 };
 
+// 获取完整的用户信息（包括认证信息、个人资料和读者信息）
+export const getFullUserInfo = (userId: number) => {
+  const db = getDatabase();
+  const userInfo = db.prepare(`
+    SELECT 
+      ua.id,
+      ua.username,
+      ua.email,
+      ua.role,
+      up.full_name,
+      up.phone,
+      up.address as profile_address,
+      up.avatar_url,
+      r.userId as reader_id,
+      r.address as reader_address,
+      r.balance,
+      r.creditLevel
+    FROM hust_library_user_auth ua
+    LEFT JOIN hust_library_user_profile up ON ua.id = up.auth_id
+    LEFT JOIN hust_library_reader r ON ua.id = r.id
+    WHERE ua.id = ?
+  `).get(userId);
+  db.close();
+  return userInfo;
+};
+
 // 获取供应商图书供应视图
 export const getSupplierBookSupply = () => {
   const db = getDatabase();
@@ -185,4 +211,53 @@ export const getLowStockAlert = () => {
   const alerts = db.prepare('SELECT * FROM low_stock_alert').all();
   db.close();
   return alerts;
+};
+
+// 获取所有图书信息（包含作者）
+export const getAllBooks = () => {
+  const db = getDatabase();
+  const books = db.prepare(`
+    SELECT 
+      b.id,
+      b.name as title,
+      b.price,
+      b.publish,
+      b.stock,
+      GROUP_CONCAT(w.writer, ', ') as author,
+      CASE 
+        WHEN b.keyword LIKE '%技术%' OR b.keyword LIKE '%计算机%' THEN '技术'
+        WHEN b.keyword LIKE '%生活%' OR b.keyword LIKE '%生活方式%' THEN '生活方式'
+        WHEN b.keyword LIKE '%设计%' THEN '设计'
+        WHEN b.keyword LIKE '%传记%' THEN '传记'
+        WHEN b.keyword LIKE '%科幻%' THEN '科幻'
+        ELSE '其他'
+      END as tag
+    FROM hust_library_book b
+    LEFT JOIN hust_library_write w ON b.id = w.book_id
+    GROUP BY b.id
+    ORDER BY b.id
+  `).all();
+  db.close();
+  return books;
+};
+
+// 获取用户的订单历史
+export const getUserOrderHistory = (userId: number) => {
+  const db = getDatabase();
+  const orders = db.prepare(`
+    SELECT 
+      t.id,
+      t.reader_id as orderId,
+      b.name as title,
+      t.time as date,
+      t.status,
+      t.quantity,
+      t.price
+    FROM hust_library_ticket t
+    JOIN hust_library_book b ON t.id = b.id
+    WHERE t.reader_id = ?
+    ORDER BY t.time DESC
+  `).all(userId);
+  db.close();
+  return orders;
 };

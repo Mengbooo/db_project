@@ -247,15 +247,40 @@ console.log('Database views created successfully');
 // 插入示例图书
 db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (1, '计算机网络', 20200101, 59.99, '清华大学出版社', '计算机,网络', 100, '清华供应商', 1)");
 db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (2, '数据库系统概念', 20190515, 79.99, '机械工业出版社', '数据库,系统', 50, '机工供应商', 2)");
+// 新增更多示例图书
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (3, '深入理解计算机系统', 20210315, 128.00, '人民邮电出版社', '计算机,系统', 30, '人邮供应商', 3)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (4, '算法导论', 20181120, 99.00, '机械工业出版社', '计算机,算法', 25, '机工供应商', 4)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (5, '三体', 20190901, 45.00, '重庆出版社', '科幻,小说', 75, '重庆供应商', 5)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (6, '活着', 20200510, 35.00, '作家出版社', '文学,小说', 60, '作家供应商', 6)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (7, '设计心理学', 20210101, 68.00, '中信出版社', '设计,心理学', 40, '中信供应商', 7)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (8, '人类简史', 20191212, 52.00, '中信出版社', '历史,人文', 55, '中信供应商', 8)");
 
 // 插入示例作者信息
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (1, 1, '谢希仁')");
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (2, 2, 'Abraham Silberschatz')");
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (3, 2, 'Henry F. Korth')");
+// 新增更多作者信息
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (4, 3, 'Randal E. Bryant')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (5, 3, 'David R. O''Hallaron')");  // 转义单引号
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (6, 4, 'Thomas H. Cormen')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (7, 4, 'Charles E. Leiserson')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (8, 4, 'Ronald L. Rivest')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (9, 4, 'Clifford Stein')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (10, 5, '刘慈欣')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (11, 6, '余华')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (12, 7, 'Donald A. Norman')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (13, 8, '尤瓦尔·赫拉利')");
 
 // 插入示例库存信息
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (1, 1, 1, 'A区1架')");
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (2, 1, 2, 'A区2架')");
+// 新增更多库存信息
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (3, 1, 3, 'B区1架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (4, 1, 4, 'B区2架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (5, 1, 5, 'C区1架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (6, 1, 6, 'C区2架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (7, 1, 7, 'D区1架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (8, 1, 8, 'D区2架')");
 
 // 插入示例读者信息
 db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (1, 'user001', '北京市海淀区', 1000.00, 3)");
