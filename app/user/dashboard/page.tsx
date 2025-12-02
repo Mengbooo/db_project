@@ -84,6 +84,18 @@ const getCreditLevelName = (level: number) => {
   }
 };
 
+// 根据信用等级获取对应的样式
+const getCreditLevelStyle = (level: number) => {
+  switch(level) {
+    case 1: return "text-gray-300 bg-gray-500/20 border border-gray-500/30"; // 普通会员 - 灰色
+    case 2: return "text-gray-300 bg-gray-400/20 border border-gray-400/30"; // 银卡会员 - 银色
+    case 3: return "text-yellow-300 bg-yellow-500/20 border border-yellow-500/30"; // 金卡会员 - 金色
+    case 4: return "text-blue-300 bg-blue-500/20 border border-blue-500/30"; // 白金会员 - 蓝色
+    case 5: return "text-cyan-300 bg-cyan-500/20 border border-cyan-500/30"; // 钻石会员 - 青色
+    default: return "text-gray-300 bg-gray-500/20 border border-gray-500/30";
+  }
+};
+
 // 将状态转换为样式
 const getStatusStyle = (status: string) => {
   switch(status) {
@@ -339,11 +351,13 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                       <div className="pt-4 border-t border-white/10">
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-xs text-[#86868b]">会员等级</span>
-                          <span className="text-xs font-bold text-[#0071e3]">{getCreditLevelName(user.creditLevel)}</span>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCreditLevelStyle(user.creditLevel)}`}>
+                            {getCreditLevelName(user.creditLevel)}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-[#86868b]">账户余额</span>
-                          <span className="text-sm font-bold text-white">¥{user.balance?.toFixed(2) || '0.00'}</span>
+                          <span className="text-sm font-bold text-white">¥ {user.balance?.toFixed(2) || '0.00'}</span>
                         </div>
                       </div>
                   </div>
