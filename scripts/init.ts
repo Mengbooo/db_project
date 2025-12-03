@@ -65,17 +65,6 @@ db.exec(`
   )
 `);
 
-// 5. 读者信息表 hust_library_reader
-db.exec(`
-  CREATE TABLE IF NOT EXISTS hust_library_reader (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId VARCHAR(50),
-    address VARCHAR(200),
-    balance DECIMAL,
-    creditLevel INTEGER
-  )
-`);
-
 // 6. 订单表 hust_library_ticket
 db.exec(`
   CREATE TABLE IF NOT EXISTS hust_library_ticket (
@@ -91,13 +80,27 @@ db.exec(`
   )
 `);
 
+// 5. 读者信息表 hust_library_reader
+db.exec(`
+  CREATE TABLE IF NOT EXISTS hust_library_reader (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId VARCHAR(50),
+    address VARCHAR(200),
+    balance DECIMAL,
+    creditLevel INTEGER
+  )
+`);
+
 // 7. 供应商表 hust_library_supplier
 db.exec(`
   CREATE TABLE IF NOT EXISTS hust_library_supplier (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
     phone VARCHAR(20),
-    supplyInfo TEXT
+    category VARCHAR(100),
+    region VARCHAR(100),
+    website VARCHAR(255)
   )
 `);
 
@@ -125,7 +128,7 @@ db.exec(`
   )
 `);
 
-// 10. 用户个人信息表 (与读者信息关联)
+// 10. 用户个人信息表 (包含原读者信息)
 db.exec(`
   CREATE TABLE IF NOT EXISTS hust_library_user_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,6 +136,8 @@ db.exec(`
     full_name VARCHAR(100),
     phone VARCHAR(20),
     address VARCHAR(200),
+    balance DECIMAL,
+    creditLevel INTEGER,
     avatar_url VARCHAR(255),
     FOREIGN KEY (auth_id) REFERENCES hust_library_user_auth (id) ON DELETE CASCADE
   )
@@ -305,12 +310,12 @@ db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance
 db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, price, time, quantity, reader_id, description, address, status) VALUES (1, 59.99, 20230101, 1, 1, '购买计算机网络教材', '北京市海淀区', '已发货')");
 
 // 插入示例供应商信息
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (1, '清华大学出版社', '010-12345678', '计算机类教材')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (2, '机械工业出版社', '010-87654321', '工程技术类图书')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (3, '人民邮电出版社', '010-12345679', '通信技术类图书')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (4, '重庆出版社', '023-12345678', '文学作品')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (5, '作家出版社', '010-23456789', '文学小说')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (6, '中信出版社', '010-34567890', '经济管理类图书')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (1, '清华大学出版社', 'contact@tsinghua.edu.cn', '010-12345678', '计算机,网络', '中国', 'www.tsinghuapress.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (2, '机械工业出版社', 'contact@cip.com.cn', '010-87654321', '计算机,算法', '中国', 'www.cip.com.cn')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (3, '人民邮电出版社', 'contact@ptpress.com.cn', '010-12345679', '计算机,系统', '中国', 'www.ptpress.com.cn')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (4, '重庆出版社', 'contact@cqpress.com', '023-12345678', '科幻,小说', '中国', 'www.cqpress.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (5, '作家出版社', 'contact@zuojiachubanshe.com', '010-23456789', '文学,小说', '中国', 'www.zuojiachubanshe.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (6, '中信出版社', 'contact@citicpub.com', '010-34567890', '设计,经济管理', '中国', 'www.citicpub.com')");
 
 // 插入示例采购单信息
 db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity) VALUES (1, 1, 20)");
@@ -320,8 +325,8 @@ db.exec("INSERT OR IGNORE INTO hust_library_user_auth (id, username, email, pass
 db.exec("INSERT OR IGNORE INTO hust_library_user_auth (id, username, email, password_hash, role) VALUES (2, 'user', 'user@example.com', '123456', 'user')");
 
 // 插入示例用户个人信息 (新添加)
-db.exec("INSERT OR IGNORE INTO hust_library_user_profile (id, auth_id, full_name, phone, address) VALUES (1, 1, '管理员', '13800138000', '北京市朝阳区')");
-db.exec("INSERT OR IGNORE INTO hust_library_user_profile (id, auth_id, full_name, phone, address) VALUES (2, 2, '普通用户', '13900139000', '上海市浦东区')");
+db.exec("INSERT OR IGNORE INTO hust_library_user_profile (id, auth_id, full_name, phone, address, balance, creditLevel) VALUES (1, 1, '管理员', '13800138000', '北京市朝阳区', 1000.00, 3)");
+db.exec("INSERT OR IGNORE INTO hust_library_user_profile (id, auth_id, full_name, phone, address, balance, creditLevel) VALUES (2, 2, '普通用户', '13900139000', '上海市浦东区', 500.00, 2)");
 
 console.log('Sample data for online bookstore inserted');
 

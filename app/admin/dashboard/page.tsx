@@ -76,7 +76,7 @@ interface Order {
 interface Supplier {
   id: string;
   name: string;
-  contact: string;
+  email: string;
   category: string;
   region: string;
   phone?: string;
@@ -107,9 +107,9 @@ const INITIAL_ORDERS: Order[] = [
 ];
 
 const INITIAL_SUPPLIERS: Supplier[] = [
-  { id: "SUP-01", name: "Penguin Random House", contact: "contact@penguin.com", category: "Publishing", region: "Global" },
-  { id: "SUP-02", name: "O'Reilly Media", contact: "support@oreilly.com", category: "Tech Edu", region: "USA" },
-  { id: "SUP-03", name: "Kinokuniya", contact: "sales@kinokuniya.jp", category: "Retail", region: "Japan" },
+  { id: "SUP-01", name: "Penguin Random House", email: "contact@penguin.com", category: "Publishing", region: "Global" },
+  { id: "SUP-02", name: "O'Reilly Media", email: "support@oreilly.com", category: "Tech Edu", region: "USA" },
+  { id: "SUP-03", name: "Kinokuniya", email: "sales@kinokuniya.jp", category: "Retail", region: "Japan" },
 ];
 
 const MOCK_ADMIN = {
@@ -165,6 +165,9 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [restockItemId, setRestockItemId] = useState<number | null>(null);
   const [restockQuantity, setRestockQuantity] = useState(10);
+  
+  // Supplier Notification State
+  const [notificationSupplier, setNotificationSupplier] = useState<string | null>(null);
 
   // Fetch data from API
   useEffect(() => {
@@ -226,12 +229,33 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('删除图书时出错:', error);
         toast.error('删除图书时发生错误');
       }
+    } else if (type === 'suppliers') {
+      try {
+        // 提取数字的 ID
+        const supplierId = (id as string).replace('SUP-', '');
+        // 发送刪除请求到API
+        const response = await fetch(`/api/suppliers/delete?id=${supplierId}`, {
+          method: 'DELETE',
+        });
+            
+        const result = await response.json();
+            
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          toast.success('供应商已刪除');
+        } else {
+          toast.error(`刪除失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('删除供应商时出错:', error);
+        toast.error('删除供应商时发生错误');
+      }
     } else {
       // 其他类型的删除保持原有逻辑
       if (type === 'orders') setOrders(orders.filter(i => i.id !== id));
       if (type === 'users') setUsers(users.filter(i => i.id !== id));
-      if (type === 'suppliers') setSuppliers(suppliers.filter(i => i.id !== id));
-      toast.success("记录已删除");
+      toast.success('记录已删除');
     }
   };
 
@@ -277,7 +301,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     e.preventDefault();
     
     if (activeTab === 'books' && editingItem) {
-      // 获取表单数据
+      // 图书编辑逻辑
       const formData = new FormData(e.target as HTMLFormElement);
       const bookData = {
         id: (editingItem as Book).id,
@@ -312,6 +336,43 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       } catch (error) {
         console.error('更新图书信息时出错:', error);
         toast.error('更新图书信息时发生错误');
+      }
+    } else if (activeTab === 'suppliers' && editingItem) {
+      // 供应商编辑逻辑
+      const formData = new FormData(e.target as HTMLFormElement);
+      const supplierData = {
+        id: (editingItem as Supplier).id.replace('SUP-', ''),
+        name: formData.get('name') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        category: formData.get('category') as string,
+        region: formData.get('region') as string,
+        website: formData.get('website') as string
+      };
+      
+      try {
+        // 发送更新请求到API
+        const response = await fetch('/api/suppliers/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(supplierData),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          setIsModalOpen(false);
+          toast.success('供应商信息更新成功');
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('更新供应商信息时出错:', error);
+        toast.error('更新供应商信息时发生错误');
       }
     } else if (!editingItem) {
       // 添加新条目的逻辑
@@ -351,15 +412,63 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
           console.error('添加图书时出错:', error);
           toast.error('添加图书时发生错误');
         }
+      } else if (activeTab === 'suppliers') {
+        // 供应商新增逻辑
+        const formData = new FormData(e.target as HTMLFormElement);
+        const supplierData = {
+          name: formData.get('name') as string || '新供应商',
+          email: formData.get('email') as string || '',
+          phone: formData.get('phone') as string || '',
+          category: formData.get('category') as string || '',
+          region: formData.get('region') as string || '中国',
+          website: formData.get('website') as string || ''
+        };
+        
+        try {
+          // 发送新增请求到API
+          const response = await fetch('/api/suppliers/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(supplierData),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // 刷新数据
+            await refreshData();
+            setIsModalOpen(false);
+            toast.success('新供应商已添加');
+          } else {
+            toast.error(`添加失败: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('添加供应商时出错:', error);
+          toast.error('添加供应商时发生错误');
+        }
       } else {
+        // 其他条件 tab 的保存逻辑（保持原有 mock 逻辑）
         setIsModalOpen(false);
-        toast.success("新条目已添加 (Mock)");
+        toast.success("修改已保存 (Mock)");
       }
     } else {
-      // 其他tab的保存逻辑（保持原有mock逻辑）
+      // 编辑或其他接 tab 的保存逻辑（保持原有 mock 逻辑）
       setIsModalOpen(false);
       toast.success("修改已保存 (Mock)");
     }
+  };
+
+  const handleNotifyRestock = (supplierId: string, supplierName: string, supplierEmail: string) => {
+    // 模拟通知补货
+    setNotificationSupplier(supplierId);
+    toast.success(`已通知${supplierName} (${supplierEmail}) 补货`);
+    
+    // 2秒后清除通知状态
+    setTimeout(() => {
+      setNotificationSupplier(null);
+    }, 2000);
   };
 
   const handleRestock = (id: number) => {
@@ -637,7 +746,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">供应商名称</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">区域</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">联系方式</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">邮箱</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">电话</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">网站</th>
                                   </>}
@@ -729,11 +838,29 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                           </span>
                                       </td>
                                       <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{supplier.region}</td>
-                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer whitespace-nowrap truncate" title={supplier.contact}>{supplier.contact}</td>
+                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer whitespace-nowrap truncate" title={supplier.email}>{supplier.email}</td>
                                       <td className="p-5 text-sm text-gray-400 whitespace-nowrap truncate" title={supplier.phone}>{supplier.phone}</td>
-                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer max-w-xs truncate" title={supplier.website || '未设置'}>{supplier.website || '未设置'}</td>
+                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer max-w-xs truncate" 
+                                        title={supplier.website || '未设置'}
+                                        onClick={() => {
+                                          if (supplier.website && supplier.website !== '未设置') {
+                                            let url = supplier.website;
+                                            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                              url = 'http://' + url;
+                                            }
+                                            window.open(url, '_blank');
+                                          }
+                                        }}
+                                      >
+                                        {supplier.website || '未设置'}
+                                      </td>
                                       <td className="p-5 text-center">
-                                          <ActionButtons onEdit={() => handleEdit(supplier)} onDelete={() => handleDelete(supplier.id, 'suppliers')} />
+                                          <ActionButtons 
+                                            onEdit={() => handleEdit(supplier)} 
+                                            onDelete={() => handleDelete(supplier.id, 'suppliers')}
+                                            onNotify={() => handleNotifyRestock(supplier.id, supplier.name, supplier.email)}
+                                            isSupplier={true}
+                                          />
                                       </td>
                                   </TableRow>
                               ))}
@@ -756,7 +883,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                 </div>
                 
                 <form onSubmit={handleSave} className="p-6 space-y-4">
-                    {activeTab === 'books' ? (
+                  {activeTab === 'books' ? (
                       // 图书信息表单
                       <>
                         <div className="space-y-2">
@@ -842,6 +969,90 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
                             placeholder="请输入出版社/供应商" 
                             required
+                          />
+                        </div>
+                      </>
+                    ) : activeTab === 'suppliers' ? (
+                      // 供应商信息表单
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">供应商名称</label>
+                          <input 
+                            type="text" 
+                            name="name"
+                            defaultValue={
+                              editingItem && 'name' in editingItem ? editingItem.name as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入供应商名称" 
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">邮箱</label>
+                          <input 
+                            type="email" 
+                            name="email"
+                            defaultValue={
+                              editingItem && 'email' in editingItem ? editingItem.email as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入邮箱地址" 
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">电话</label>
+                            <input 
+                              type="text" 
+                              name="phone"
+                              defaultValue={
+                                editingItem && 'phone' in editingItem ? editingItem.phone as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入电话号码" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">地区</label>
+                            <input 
+                              type="text" 
+                              name="region"
+                              defaultValue={
+                                editingItem && 'region' in editingItem ? editingItem.region as string : '中国'
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入地区" 
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">供应图书类型</label>
+                          <input 
+                            type="text" 
+                            name="category"
+                            defaultValue={
+                              editingItem && 'category' in editingItem ? editingItem.category as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入供应图书类型，例如：计算机,文学" 
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">网站</label>
+                          <input 
+                            type="text" 
+                            name="website"
+                            defaultValue={
+                              editingItem && 'website' in editingItem ? editingItem.website as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入网站地址" 
                           />
                         </div>
                       </>
@@ -1017,10 +1228,12 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-function ActionButtons({ onEdit, onDelete, onRestock }: { 
+function ActionButtons({ onEdit, onDelete, onRestock, onNotify, isSupplier }: { 
   onEdit: () => void; 
   onDelete: () => void; 
-  onRestock?: () => void; 
+  onRestock?: () => void;
+  onNotify?: () => void;
+  isSupplier?: boolean;
 }) {
     return (
         <div className="flex items-center justify-center gap-2">
@@ -1041,6 +1254,17 @@ function ActionButtons({ onEdit, onDelete, onRestock }: {
                         <path d="M12 2v20" />
                         <path d="M8 10l4-4 4 4" />
                         <path d="M8 18l4 4 4-4" />
+                    </svg>
+                </button>
+            )}
+            {onNotify && isSupplier && (
+                <button 
+                    onClick={onNotify} 
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-orange-500/20 hover:text-orange-400 hover:border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20 transition-all"
+                    title="通知补货"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
                 </button>
             )}

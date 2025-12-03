@@ -106,13 +106,11 @@ export async function GET(request: Request) {
       suppliers: suppliers.map(supplier => ({
         id: `SUP-${supplier.id.toString().padStart(2, '0')}`,
         name: supplier.name,
-        contact: supplier.phone || supplier.supplyInfo || '未设置联系方式',
-        category: supplier.supplyInfo || '未分类',
-        region: '中国',
-        address: '未设置地址',
+        email: supplier.email || '未设置邮箱',
+        category: supplier.category || '未分类',
+        region: supplier.region || '中国',
         phone: supplier.phone || '未设置电话',
-        website: '未设置网站',
-        supplierNotes: '暂无备注',
+        website: supplier.website || '未设置网站',
       }))
     });
   } catch (error) {
