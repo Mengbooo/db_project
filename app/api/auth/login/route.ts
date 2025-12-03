@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     updateUserLoginTime(user.id);
 
     // 根据角色返回不同的响应，包含用户ID
-    const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : `/user/dashboard?userId=${user.id}`;
+    const redirectUrl = user.role === 'admin' ? `/admin/dashboard?adminId=${user.id}` : `/user/dashboard?userId=${user.id}`;
 
     return NextResponse.json({
       message: '登录成功',

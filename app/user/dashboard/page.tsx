@@ -324,8 +324,10 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                   </button>
 
                   <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#0071e3] to-[#5ac8fa] p-[2px] shadow-lg shadow-blue-500/20">
-                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="Avatar" className="w-full h-full rounded-full bg-black object-cover" />
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#0071e3] to-[#5ac8fa] p-[2px] flex-shrink-0 shadow-lg shadow-blue-500/20">
+                         <div className="w-full h-full rounded-full bg-[#1c1c1e] flex items-center justify-center text-xl font-bold text-white">
+                             {(user.full_name || user.username).charAt(0)}
+                         </div>
                       </div>
                       <div>
                           <div className="text-xs text-[#0071e3] font-bold uppercase tracking-wider mb-1">个人信息</div>

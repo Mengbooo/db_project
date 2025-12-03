@@ -122,6 +122,11 @@ export const createUser = (username: string, email: string, password: string, ro
     'INSERT INTO hust_library_user_profile (auth_id, full_name) VALUES (?, ?)'
   ).run(result.lastInsertRowid, username);
   
+  // 同时创建读者记录
+  db.prepare(
+    'INSERT INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (?, ?, ?, ?, ?)'
+  ).run(result.lastInsertRowid, username, '', 0.00, 1);
+  
   db.close();
   return result;
 };
@@ -211,6 +216,54 @@ export const getLowStockAlert = () => {
   const alerts = db.prepare('SELECT * FROM low_stock_alert').all();
   db.close();
   return alerts;
+};
+
+// 获取图书状态视图
+export const getBookStatusView = () => {
+  const db = getDatabase();
+  const bookStatus = db.prepare('SELECT * FROM book_status_view').all();
+  db.close();
+  return bookStatus;
+};
+
+// 更新图书信息
+export const updateBook = (id: number, name: string, author: string, price: number, publisher: string, stock: number, keyword: string) => {
+  const db = getDatabase();
+  
+  // 开始事务
+  db.prepare('BEGIN').run();
+  
+  try {
+    // 更新图书基本信息
+    const result = db.prepare(
+      'UPDATE hust_library_book SET name = ?, price = ?, publish = ?, supplier = ?, stock = ?, keyword = ? WHERE id = ?'
+    ).run(name, price, publisher, publisher, stock, keyword, id);
+    
+    // 删除现有的作者信息
+    db.prepare('DELETE FROM hust_library_write WHERE book_id = ?').run(id);
+    
+    // 插入新的作者信息
+    if (author) {
+      // 如果作者是逗号分隔的多个作者，需要分别插入
+      const authors = author.split(',').map((a: string) => a.trim()).filter((a: string) => a);
+      for (const writer of authors) {
+        db.prepare(
+          'INSERT INTO hust_library_write (book_id, writer) VALUES (?, ?)'
+        ).run(id, writer);
+      }
+    }
+    
+    // 提交事务
+    db.prepare('COMMIT').run();
+    
+    db.close();
+    return result;
+  } catch (error) {
+    // 回滚事务
+    db.prepare('ROLLBACK').run();
+    db.close();
+    throw error;
+  }
 };
 
 // 获取所有图书信息（包含作者）

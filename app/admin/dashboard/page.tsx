@@ -1,0 +1,1057 @@
+"use client"
+
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, 
+  LayoutDashboard, 
+  BookOpen, 
+  ShoppingBag, 
+  Users, 
+  Truck, 
+  Settings, 
+  LogOut, 
+  Plus, 
+  MoreHorizontal, 
+  Edit2, 
+  Trash2, 
+  CheckCircle2, 
+  AlertCircle, 
+  Clock, 
+  X,
+  Save,
+  Bell,
+  ShieldCheck
+} from 'lucide-react';
+import { Toaster, toast } from 'sonner';
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  profile_address: string;
+  balance: number;
+  creditLevel: number;
+  avatar_url: string | null;
+  role: string;
+}
+
+interface DisplayUser {
+  id: string;
+  full_name: string;
+  username: string;
+  email: string;
+  creditLevel: number;
+  joined: string;
+  status: string;
+  phone?: string;
+  profile_address?: string;
+  balance?: number;
+  role: string;
+}
+
+interface Book {
+  id: number;
+  title: string;
+  author: string;
+  price: number;
+  stock: number;
+  category: string;
+  status: string;
+  publisher?: string;
+  publishDate?: string;
+}
+
+interface Order {
+  id: string;
+  customer: string;
+  date: string;
+  total: number;
+  items: number;
+  status: string;
+  shippingAddress?: string;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  category: string;
+  region: string;
+  phone?: string;
+  website?: string;
+}
+
+type EditingItem = User | Book | Order | Supplier | null;
+
+const INITIAL_USERS: DisplayUser[] = [
+  { id: "USR-001", full_name: "Alex Chen", username: "alex", email: "alex@design.co", creditLevel: 5, joined: "2022-01-15", status: "Active", role: "user" },
+  { id: "USR-002", full_name: "John Doe", username: "john", email: "john@example.com", creditLevel: 3, joined: "2023-03-10", status: "Active", role: "user" },
+  { id: "USR-003", full_name: "Alice Won", username: "alice", email: "alice@test.com", creditLevel: 2, joined: "2023-05-22", status: "Inactive", role: "user" },
+];
+
+const INITIAL_BOOKS: Book[] = [
+  { id: 101, title: "The Art of Code", author: "Max Howell", price: 89.00, stock: 124, category: "技术", status: "In Stock" },
+  { id: 102, title: "Minimalist Living", author: "Fumio Sasaki", price: 45.00, stock: 45, category: "生活", status: "Low Stock" },
+  { id: 103, title: "Designing Interfaces", author: "Jenifer Tidwell", price: 128.00, stock: 89, category: "设计", status: "In Stock" },
+  { id: 104, title: "Steve Jobs", author: "Walter Isaacson", price: 68.00, stock: 0, category: "传记", status: "Out of Stock" },
+  { id: 105, title: "Neuromancer", author: "William Gibson", price: 56.00, stock: 210, category: "科幻", status: "In Stock" },
+];
+
+const INITIAL_ORDERS: Order[] = [
+  { id: "ORD-7728", customer: "Alex Chen", date: "2023-10-24", total: 189.00, items: 3, status: "Completed" },
+  { id: "ORD-7729", customer: "Sarah Smith", date: "2023-10-24", total: 45.00, items: 1, status: "Processing" },
+  { id: "ORD-7730", customer: "Mike Jones", date: "2023-10-23", total: 256.00, items: 4, status: "Pending" },
+  { id: "ORD-7731", customer: "Emily Yu", date: "2023-10-23", total: 89.00, items: 1, status: "Cancelled" },
+];
+
+const INITIAL_SUPPLIERS: Supplier[] = [
+  { id: "SUP-01", name: "Penguin Random House", contact: "contact@penguin.com", category: "Publishing", region: "Global" },
+  { id: "SUP-02", name: "O'Reilly Media", contact: "support@oreilly.com", category: "Tech Edu", region: "USA" },
+  { id: "SUP-03", name: "Kinokuniya", contact: "sales@kinokuniya.jp", category: "Retail", region: "Japan" },
+];
+
+const MOCK_ADMIN = {
+    name: "Sarah Admin",
+    role: "Super Admin",
+    email: "sarah@ibookstore.com",
+    avatar: "SA"
+};
+
+// 将信用等级数字转换为中文名称
+const getCreditLevelName = (level: number) => {
+  switch(level) {
+    case 1: return "普通会员";
+    case 2: return "银卡会员";
+    case 3: return "金卡会员";
+    case 4: return "白金会员";
+    case 5: return "钻石会员";
+    default: return "普通会员";
+  }
+};
+
+// 根据信用等级获取对应的样式
+const getCreditLevelStyle = (level: number) => {
+  switch(level) {
+    case 1: return "text-gray-300 bg-gray-500/20 border border-gray-500/30"; // 普通会员 - 灰色
+    case 2: return "text-gray-300 bg-gray-400/20 border border-gray-400/30"; // 银卡会员 - 银色
+    case 3: return "text-yellow-300 bg-yellow-500/20 border border-yellow-500/30"; // 金卡会员 - 金色
+    case 4: return "text-blue-300 bg-blue-500/20 border border-blue-500/30"; // 白金会员 - 蓝色
+    case 5: return "text-cyan-300 bg-cyan-500/20 border border-cyan-500/30"; // 钻石会员 - 青色
+    default: return "text-gray-300 bg-gray-500/20 border border-gray-500/30";
+  }
+};
+
+// 修改AdminDashboard组件以接收props
+export default function AdminDashboard({ searchParams }: { searchParams: Promise<{ adminId?: string }> }) {
+  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>('books');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Data State
+  const [books, setBooks] = useState<Book[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [adminData, setAdminData] = useState<User | null>(null); // 添加admin数据状态
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<EditingItem>(null);
+  
+  // Restock Modal State
+  const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+  const [restockItemId, setRestockItemId] = useState<number | null>(null);
+  const [restockQuantity, setRestockQuantity] = useState(10);
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // 获取admin ID
+        const params = await searchParams;
+        const adminId = params.adminId || '1'; // 默认ID为1
+        
+        // 获取admin dashboard数据
+        const response = await fetch(`/api/admin?adminId=${adminId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch admin dashboard data');
+        }
+        
+        const data = await response.json();
+        setBooks(data.books);
+        setOrders(data.orders);
+        setUsers(data.users);
+        setSuppliers(data.suppliers);
+        
+        // 设置admin数据
+        if (data.admin) {
+          setAdminData(data.admin);
+        }
+      } catch (err) {
+        console.error('获取数据失败:', err);
+        setError(err instanceof Error ? err.message : '未知错误');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // --- Actions ---
+  const handleDelete = async (id: string | number, type: string) => {
+    if (type === 'books') {
+      try {
+        // 发送删除请求到API
+        const response = await fetch(`/api/books/delete/${id}`, {
+          method: 'DELETE',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          toast.success("图书已删除");
+        } else {
+          toast.error(`删除失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('删除图书时出错:', error);
+        toast.error('删除图书时发生错误');
+      }
+    } else {
+      // 其他类型的删除保持原有逻辑
+      if (type === 'orders') setOrders(orders.filter(i => i.id !== id));
+      if (type === 'users') setUsers(users.filter(i => i.id !== id));
+      if (type === 'suppliers') setSuppliers(suppliers.filter(i => i.id !== id));
+      toast.success("记录已删除");
+    }
+  };
+
+  const handleEdit = (item: User | Book | Order | Supplier) => {
+    setEditingItem(item);
+    setIsModalOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingItem(null); // Null means adding new
+    setIsModalOpen(true);
+  };
+
+  const refreshData = async () => {
+    try {
+      // 获取URL中的adminId参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const adminId = urlParams.get('adminId') || '1'; // 默认ID为1
+      
+      // 获取admin dashboard数据
+      const response = await fetch(`/api/admin?adminId=${adminId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch admin dashboard data');
+      }
+      
+      const data = await response.json();
+      setBooks(data.books);
+      setOrders(data.orders);
+      setUsers(data.users);
+      setSuppliers(data.suppliers);
+      
+      // 设置admin数据
+      if (data.admin) {
+        setAdminData(data.admin);
+      }
+    } catch (err) {
+      console.error('刷新数据失败:', err);
+      setError(err instanceof Error ? err.message : '未知错误');
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (activeTab === 'books' && editingItem) {
+      // 获取表单数据
+      const formData = new FormData(e.target as HTMLFormElement);
+      const bookData = {
+        id: (editingItem as Book).id,
+        name: formData.get('title') as string,
+        author: formData.get('author') as string,
+        price: parseFloat(formData.get('price') as string),
+        publisher: formData.get('publisher') as string,
+        stock: parseInt(formData.get('stock') as string),
+        keyword: formData.get('category') as string
+      };
+      
+      try {
+        // 发送更新请求到API
+        const response = await fetch('/api/books/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bookData),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          setIsModalOpen(false);
+          toast.success('图书信息更新成功');
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('更新图书信息时出错:', error);
+        toast.error('更新图书信息时发生错误');
+      }
+    } else if (!editingItem) {
+      // 添加新条目的逻辑
+      if (activeTab === 'books') {
+        // 获取表单数据
+        const formData = new FormData(e.target as HTMLFormElement);
+        const bookData = {
+          name: formData.get('title') as string || 'New Book Title',
+          author: formData.get('author') as string || '',
+          price: parseFloat(formData.get('price') as string) || 0,
+          publisher: formData.get('publisher') as string || 'Unknown Publisher',
+          stock: parseInt(formData.get('stock') as string) || 0,
+          keyword: formData.get('category') as string || 'Uncategorized'
+        };
+        
+        try {
+          // 发送新增请求到API
+          const response = await fetch('/api/books/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(bookData),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // 刷新数据
+            await refreshData();
+            setIsModalOpen(false);
+            toast.success('新图书已添加');
+          } else {
+            toast.error(`添加失败: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('添加图书时出错:', error);
+          toast.error('添加图书时发生错误');
+        }
+      } else {
+        setIsModalOpen(false);
+        toast.success("新条目已添加 (Mock)");
+      }
+    } else {
+      // 其他tab的保存逻辑（保持原有mock逻辑）
+      setIsModalOpen(false);
+      toast.success("修改已保存 (Mock)");
+    }
+  };
+
+  const handleRestock = (id: number) => {
+    // 设置补货弹窗的状态
+    setRestockItemId(id);
+    setRestockQuantity(10); // 默认补货数量为10
+    setIsRestockModalOpen(true);
+  };
+  
+  const handleRestockSubmit = async () => {
+    if (!restockItemId) return;
+    
+    if (isNaN(restockQuantity) || restockQuantity <= 0) {
+      toast.error("请输入有效的补货数量");
+      return;
+    }
+    
+    try {
+      // 调用API来处理补货逻辑
+      const response = await fetch('/api/books/restock', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: restockItemId, quantity: restockQuantity }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // 刷新数据
+        await refreshData();
+        setIsRestockModalOpen(false);
+        toast.success(`图书 ID ${restockItemId} 补货成功，库存增加${restockQuantity}本`);
+      } else {
+        toast.error(`补货失败: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('补货时出错:', error);
+      toast.error('补货时发生错误');
+    }
+  };
+
+  // --- Actions ---
+
+  // --- Render Helpers ---
+  
+  // 根据当前tab和搜索查询过滤数据
+  const getFilteredBooks = () => {
+    return books.filter(book => 
+      book.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+  
+  const getFilteredOrders = () => {
+    return orders.filter(order => 
+      order.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+  
+  const getFilteredUsers = () => {
+    return users.filter(user => 
+      (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.username && user.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  };
+  
+  const getFilteredSuppliers = () => {
+    return suppliers.filter(supplier => 
+      supplier.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'In Stock': case 'Completed': case 'Active': return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'Low Stock': case 'Processing': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      case 'Out of Stock': case 'Cancelled': case 'Inactive': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      default: return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    }
+  };
+
+  // 如果数据还在加载中
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full bg-[#050507] text-[#f5f5f7] font-sans flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#0071e3] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg">正在加载数据...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果有错误
+  if (error) {
+    return (
+      <div className="min-h-screen w-full bg-[#050507] text-[#f5f5f7] font-sans flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+          <p className="text-lg">加载数据时出错: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-[#0071e3] text-white rounded-lg hover:bg-[#0062c3] transition-colors"
+          >
+            重新加载
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full bg-[#050507] text-[#f5f5f7] font-sans flex items-center justify-center selection:bg-[#0071e3] selection:text-white overflow-hidden relative p-4 md:p-8">
+      <Toaster 
+        position="top-center" 
+        theme="dark"
+        toastOptions={{
+          duration: 1000,
+          classNames: {
+            toast: "bg-[#1a1a1a] border border-[#333] shadow-lg",
+            title: "text-[#f5f5f7]",
+            icon: "text-[#f5f5f7]",
+            success: "bg-[#1a1a1a] border border-[#333]",
+            error: "bg-[#1a1a1a] border border-[#333]",
+            warning: "bg-[#1a1a1a] border border-[#333]",
+          }
+        }}
+      />
+      
+      {/* --- Background (Smoother Animation) --- */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
+         <div 
+            className="absolute top-[-20%] right-[-10%] w-[1200px] h-[1000px] bg-[#0071e3] rounded-full blur-[300px] opacity-[0.08]"
+            style={{ animation: 'pulse 15s ease-in-out infinite alternate' }} 
+         ></div>
+         <div 
+            className="absolute bottom-[-20%] left-[-10%] w-[1000px] h-[800px] bg-[#bf5af2] rounded-full blur-[250px] opacity-[0.05]"
+            style={{ animation: 'pulse 20s ease-in-out infinite alternate-reverse' }} 
+         ></div>
+      </div>
+
+      {/* --- Main Glass Container (Resized to match User Dashboard) --- */}
+      <div className="relative z-10 w-full max-w-[1400px] h-[90vh] md:h-[85vh] bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex ring-1 ring-white/10">
+          
+          {/* === Sidebar Navigation === */}
+          <aside className="w-20 lg:w-72 bg-black/20 border-r border-white/[0.05] flex flex-col justify-between py-8 z-20 backdrop-blur-md">
+              <div>
+                  {/* Logo Area (Removed Icon) */}
+                  <div className="px-8 mb-8">
+                      <span className="font-bold text-xl hidden lg:block tracking-tight text-white">
+                          iBookStore <span className="font-normal text-white/50">Admin</span>
+                      </span>
+                      {/* Mobile Logo fallback */}
+                      <span className="font-bold text-xl lg:hidden text-white">iB</span>
+                  </div>
+
+                  {/* Admin Profile Card (Aligned) */}
+                  <div className="px-4 mb-8 hidden lg:block">
+                      <div className="bg-[#2c2c2e]/50 border border-white/5 rounded-2xl p-3 flex items-center gap-3 backdrop-blur-md group hover:bg-[#3a3a3c]/60 transition-colors cursor-pointer">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0071e3] to-[#5ac8fa] p-[2px] flex-shrink-0 shadow-lg shadow-blue-500/20">
+                             <div className="w-full h-full rounded-full bg-[#1c1c1e] flex items-center justify-center text-xs font-bold text-white">
+                                 {adminData ? (adminData.full_name || adminData.username).charAt(0) : MOCK_ADMIN.avatar}
+                             </div>
+                          </div>
+                          <div className="overflow-hidden flex-1 min-w-0">
+                              <div className="text-sm font-bold text-white truncate">{adminData ? (adminData.full_name || adminData.username) : MOCK_ADMIN.name}</div>
+                              <div className="text-xs text-[#86868b] truncate flex items-center gap-1">
+                                  <ShieldCheck className="w-3 h-3 text-[#0071e3]" /> {adminData ? adminData.role : MOCK_ADMIN.role}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Navigation */}
+                  <nav className="flex flex-col gap-2 px-4">
+                      <NavItem icon={<BookOpen />} label="图书管理" active={activeTab === 'books'} onClick={() => setActiveTab('books')} />
+                      <NavItem icon={<ShoppingBag />} label="订单管理" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} />
+                      <NavItem icon={<Users />} label="用户管理" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
+                      <NavItem icon={<Truck />} label="供应商" active={activeTab === 'suppliers'} onClick={() => setActiveTab('suppliers')} />
+                  </nav>
+              </div>
+
+              <div className="px-4">
+                  <NavItem icon={<LogOut />} label="退出登录" onClick={() => {}} active={false} />
+
+              </div>
+          </aside>
+
+          {/* === Main Content === */}
+          <main className="flex-1 flex flex-col relative bg-gradient-to-br from-transparent to-black/30">
+              
+              {/* Header (Removed Search) */}
+              <header className="h-24 flex items-center justify-between px-8 border-b border-white/[0.05] shrink-0 bg-white/[0.01]">
+                  <div className="flex flex-col">
+                      <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                          {activeTab === 'books' && <><BookOpen className="w-6 h-6 text-[#0071e3]" /> 图书库</>}
+                          {activeTab === 'orders' && <><ShoppingBag className="w-6 h-6 text-[#0071e3]" /> 订单中心</>}
+                          {activeTab === 'users' && <><Users className="w-6 h-6 text-[#0071e3]" /> 用户列表</>}
+                          {activeTab === 'suppliers' && <><Truck className="w-6 h-6 text-[#0071e3]" /> 供应商网络</>}
+                      </h1>
+                      <p className="text-xs text-[#86868b] mt-1 ml-8">
+                          {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                       <button className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors relative">
+                          <Bell className="w-4 h-4 text-[#86868b]" />
+                          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-[#1c1c1e]"></span>
+                       </button>
+                  </div>
+              </header>
+
+              {/* Data Table Area */}
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                  
+                  {/* Content Actions: Search and Add Button */}
+                  <div className="flex items-center justify-between mb-6 gap-4">
+                      <div className="relative group flex-1 min-w-0">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b] group-focus-within:text-[#0071e3] transition-colors" />
+                          <input 
+                              type="text" 
+                              placeholder={`搜索${activeTab === 'books' ? '图书' : activeTab === 'orders' ? '订单' : activeTab === 'users' ? '用户' : '供应商'}...`}
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
+                          />
+                      </div>
+                      <button 
+                        onClick={handleAddNew}
+                        className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
+                      >
+                          <Plus className="w-4 h-4" />
+                          <span className="hidden sm:inline">新增{activeTab === 'books' ? '图书' : activeTab === 'users' ? '用户' : '条目'}</span>
+                      </button>
+                  </div>
+
+                  {/* Table Container */}
+                  <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
+                      <table className="w-full text-left border-collapse">
+                          <thead className="bg-white/[0.02] border-b border-white/5">
+                              <tr>
+                                  {activeTab === 'books' && <>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">ID / 书名</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">作者</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">库存</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">价格</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版日期</th>
+                                  </>}
+                                  {activeTab === 'orders' && <>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">订单号</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">客户</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">日期</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">数量</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">总金额</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">收货地址</th>
+                                  </>}
+                                  {activeTab === 'users' && <>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">用户</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">邮箱</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">会员等级</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">角色</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">电话</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">地址</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">余额</th>
+                                  </>}
+                                  {activeTab === 'suppliers' && <>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">供应商名称</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">区域</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">联系方式</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">电话</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">网站</th>
+                                  </>}
+                                  <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5">
+                              {/* --- Books Row --- */}
+                              {activeTab === 'books' && getFilteredBooks().map(book => (
+                                  <TableRow key={book.id}>
+                                      <td className="p-5 pl-8">
+                                          <div className="flex items-center gap-3">
+                                              <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
+                                                  BOOK
+                                              </div>
+                                              <div className="min-w-0">
+                                                  <div className="font-medium text-white whitespace-nowrap truncate" title={book.title}>{book.title}</div>
+                                                  <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${book.id}`}>#{book.id}</div>
+                                              </div>
+                                          </div>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[120px] truncate" title={book.author}>{book.author}</td>
+                                      <td className="p-5">
+                                          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 whitespace-nowrap">
+                                              {book.category.split(',')[0] || book.category.split(' ')[0] || book.category}
+                                          </span>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-300">{book.stock}</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{book.price.toFixed(2)}</td>
+                                      <td className="p-5 whitespace-nowrap"><StatusBadge status={book.status} /></td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.publisher}>{book.publisher}</td>
+                                      <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
+                                      <td className="p-5 text-center">
+                                          <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => handleDelete(book.id, 'books')} />
+                                      </td>
+                                  </TableRow>
+                              ))}
+
+                              {/* --- Orders Row --- */}
+                              {activeTab === 'orders' && getFilteredOrders().map(order => (
+                                  <TableRow key={order.id}>
+                                      <td className="p-5 pl-8 text-sm font-mono text-gray-400 whitespace-nowrap truncate" title={order.id}>{order.id}</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap truncate" title={order.customer}>{order.customer}</td>
+                                      <td className="p-5 text-sm text-gray-400 whitespace-nowrap">{order.date}</td>
+                                      <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{order.items} Items</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{order.total.toFixed(2)}</td>
+                                      <td className="p-5 whitespace-nowrap"><StatusBadge status={order.status} /></td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-xs truncate" title={order.shippingAddress || '未设置'}>{order.shippingAddress || '未设置'}</td>
+                                      <td className="p-5 text-center">
+                                          <ActionButtons onEdit={() => handleEdit(order)} onDelete={() => handleDelete(order.id, 'orders')} />
+                                      </td>
+                                  </TableRow>
+                              ))}
+
+                              {/* --- Users Row --- */}
+                              {activeTab === 'users' && getFilteredUsers().map(user => (
+                                  <TableRow key={user.id}>
+                                      <td className="p-5 pl-8">
+                                          <div className="flex items-center gap-3">
+                                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0071e3] to-[#5ac8fa] flex items-center justify-center text-xs font-bold text-white shadow-md shadow-blue-900/20 hidden">
+                                                  {(user.full_name || user.username || 'U').charAt(0)}
+                                              </div>
+                                              <span className="font-medium text-white whitespace-nowrap truncate" title={user.full_name || user.username}>{user.full_name || user.username}</span>
+                                          </div>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-400 whitespace-nowrap truncate" title={user.email}>{user.email}</td>
+                                      <td className="p-5 whitespace-nowrap">
+                                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCreditLevelStyle(user.creditLevel)}`}>
+                                              {getCreditLevelName(user.creditLevel)}
+                                          </span>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-400 whitespace-nowrap">{user.role === 'admin' ? '管理员' : '用户'}</td>
+                                      <td className="p-5 text-sm text-gray-400 whitespace-nowrap truncate" title={user.phone}>{user.phone}</td>
+                                      <td className="p-5 text-sm text-gray-400 max-w-xs truncate" title={user.profile_address}>{user.profile_address}</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{user.balance?.toFixed(2) || '0.00'}</td>
+                                      <td className="p-5 text-center">
+                                          <ActionButtons onEdit={() => handleEdit(user)} onDelete={() => handleDelete(user.id, 'users')} />
+                                      </td>
+                                  </TableRow>
+                              ))}
+
+                              {/* --- Suppliers Row --- */}
+                              {activeTab === 'suppliers' && getFilteredSuppliers().map(supplier => (
+                                  <TableRow key={supplier.id}>
+                                      <td className="p-5 pl-8 text-sm font-medium text-white whitespace-nowrap truncate" title={supplier.name}>{supplier.name}</td>
+                                      <td className="p-5">
+                                          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 whitespace-nowrap">
+                                              {supplier.category}
+                                          </span>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{supplier.region}</td>
+                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer whitespace-nowrap truncate" title={supplier.contact}>{supplier.contact}</td>
+                                      <td className="p-5 text-sm text-gray-400 whitespace-nowrap truncate" title={supplier.phone}>{supplier.phone}</td>
+                                      <td className="p-5 text-sm text-[#0071e3] hover:underline cursor-pointer max-w-xs truncate" title={supplier.website || '未设置'}>{supplier.website || '未设置'}</td>
+                                      <td className="p-5 text-center">
+                                          <ActionButtons onEdit={() => handleEdit(supplier)} onDelete={() => handleDelete(supplier.id, 'suppliers')} />
+                                      </td>
+                                  </TableRow>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+
+              </div>
+          </main>
+      </div>
+
+      {/* --- Edit/Add Modal --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)}></div>
+            <div className="relative w-full max-w-lg bg-[#1c1c1e] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transform transition-all">
+                <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="text-lg font-bold text-white">{editingItem ? '编辑信息' : '新增条目'}</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-[#86868b] hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <form onSubmit={handleSave} className="p-6 space-y-4">
+                    {activeTab === 'books' ? (
+                      // 图书信息表单
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">书名</label>
+                          <input 
+                            type="text" 
+                            name="title"
+                            defaultValue={
+                              editingItem && 'title' in editingItem ? editingItem.title as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入书名" 
+                            required
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">作者</label>
+                            <input 
+                              type="text" 
+                              name="author"
+                              defaultValue={
+                                editingItem && 'author' in editingItem ? editingItem.author as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入作者"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">价格</label>
+                            <input 
+                              type="number" 
+                              name="price"
+                              step="0.01"
+                              defaultValue={
+                                editingItem && 'price' in editingItem ? editingItem.price as number : 0
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                              placeholder="请输入价格" 
+                              required
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">库存</label>
+                            <input 
+                              type="number" 
+                              name="stock"
+                              defaultValue={
+                                editingItem && 'stock' in editingItem ? editingItem.stock as number : 0
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                              placeholder="请输入库存数量" 
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">分类</label>
+                            <input 
+                              type="text" 
+                              name="category"
+                              defaultValue={
+                                editingItem && 'category' in editingItem ? editingItem.category as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入分类" 
+                              required
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">出版社/供应商</label>
+                          <input 
+                            type="text" 
+                            name="publisher"
+                            defaultValue={
+                              editingItem && 'publisher' in editingItem ? editingItem.publisher as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入出版社/供应商" 
+                            required
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      // 其他tab的默认表单
+                      <>
+                        <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">名称 / 标题</label>
+                            <input 
+                              type="text" 
+                              defaultValue={
+                                editingItem ? 
+                                (('title' in editingItem && typeof editingItem.title === 'string') ? editingItem.title : 
+                                 ('name' in editingItem && typeof editingItem.name === 'string') ? editingItem.name : '') : 
+                                ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入..." 
+                            />
+
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">类别 / 角色</label>
+                                <input 
+                                  type="text" 
+                                  defaultValue={
+                                    editingItem ? 
+                                    (('category' in editingItem && typeof editingItem.category === 'string') ? editingItem.category : 
+                                     ('role' in editingItem && typeof editingItem.role === 'string') ? editingItem.role : '') : 
+                                    ''
+                                  } 
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                  placeholder="请输入..." 
+                                />
+
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">状态</label>
+                                <select className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors appearance-none">
+                                    <option>Active</option>
+                                    <option>Inactive</option>
+                                    <option>In Stock</option>
+                                    <option>Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors font-medium">取消</button>
+                        <button type="submit" className="flex-1 py-3 rounded-xl bg-[#0071e3] text-white hover:bg-[#0062c3] transition-colors font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+                            <Save className="w-4 h-4" /> 保存更改
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* --- Restock Modal --- */}
+      {isRestockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsRestockModalOpen(false)}></div>
+            <div className="relative w-full max-w-lg bg-[#1c1c1e] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transform transition-all">
+                <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="text-lg font-bold text-white">图书补货</h3>
+                    <button onClick={() => setIsRestockModalOpen(false)} className="text-[#86868b] hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <div className="p-6 space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">补货数量</label>
+                        <input 
+                          type="number" 
+                          value={restockQuantity}
+                          onChange={(e) => setRestockQuantity(parseInt(e.target.value) || 0)}
+                          className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                          placeholder="请输入补货数量" 
+                          min="1"
+                        />
+                    </div>
+                    
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setIsRestockModalOpen(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors font-medium">取消</button>
+                        <button 
+                          type="button" 
+                          onClick={handleRestockSubmit}
+                          className="flex-1 py-3 rounded-xl bg-[#0071e3] text-white hover:bg-[#0062c3] transition-colors font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
+                        >
+                            <Save className="w-4 h-4" /> 确认补货
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Global Styles */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        /* Hide spinners for number inputs */
+        .hide-spinners::-webkit-outer-spin-button,
+        .hide-spinners::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .hide-spinners {
+          -moz-appearance: textfield;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.05; transform: scale(1); }
+          100% { opacity: 0.1; transform: scale(1.05); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+      `}</style>
+    </div>
+  );
+}
+
+// --- Sub Components ---
+
+function NavItem({ icon, label, active, onClick }: { 
+  icon: React.ReactElement; 
+  label: string; 
+  active: boolean; 
+  onClick: () => void; 
+}) {
+    return (
+        <button 
+            onClick={onClick}
+            className={`
+                w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 group
+                ${active ? 'bg-[#0071e3]/10 text-white border border-[#0071e3]/20 shadow-[0_0_20px_rgba(0,113,227,0.15)]' : 'text-[#86868b] hover:bg-white/5 hover:text-white border border-transparent'}
+            `}
+        >
+            {React.cloneElement(icon, { className: `w-5 h-5 ${active ? 'text-[#0071e3]' : 'text-[#86868b] group-hover:text-white'}` } as React.HTMLAttributes<SVGElement>)}
+            <span className="hidden lg:block font-medium text-sm">{label}</span>
+        </button>
+    );
+}
+
+function TableRow({ children }: { children: React.ReactNode }) {
+    return (
+        <tr className="group hover:bg-white/[0.03] transition-colors border-b border-transparent hover:border-white/5">
+            {children}
+        </tr>
+    );
+}
+
+function StatusBadge({ status }: { status: string }) {
+    let colorClass = "";
+    switch (status) {
+      case 'In Stock': case 'Completed': case 'Active': colorClass = 'bg-green-500/10 text-green-400 border-green-500/20'; break;
+      case 'Low Stock': case 'Processing': case 'Pending': colorClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'; break;
+      case 'Out of Stock': case 'Cancelled': case 'Inactive': colorClass = 'bg-red-500/10 text-red-400 border-red-500/20'; break;
+      default: colorClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    }
+    
+    return (
+        <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${colorClass}`}>
+            {status}
+        </span>
+    );
+}
+
+function ActionButtons({ onEdit, onDelete, onRestock }: { 
+  onEdit: () => void; 
+  onDelete: () => void; 
+  onRestock?: () => void; 
+}) {
+    return (
+        <div className="flex items-center justify-center gap-2">
+            <button 
+                onClick={onEdit} 
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] hover:shadow-lg hover:shadow-blue-500/30 transition-all"
+                title="编辑"
+            >
+                <Edit2 className="w-4 h-4" />
+            </button>
+            {onRestock && (
+                <button 
+                    onClick={onRestock} 
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/20 transition-all"
+                    title="补货"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v20" />
+                        <path d="M8 10l4-4 4 4" />
+                        <path d="M8 18l4 4 4-4" />
+                    </svg>
+                </button>
+            )}
+            <button 
+                onClick={onDelete} 
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/20 transition-all"
+                title="删除"
+            >
+                <Trash2 className="w-4 h-4" />
+            </button>
+        </div>
+    );
+}
+

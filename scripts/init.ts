@@ -240,6 +240,21 @@ db.exec(`
   WHERE stock < 10
 `);
 
+// 5. 图书状态视图
+db.exec(`
+  CREATE VIEW IF NOT EXISTS book_status_view AS
+  SELECT 
+    id,
+    name,
+    stock,
+    CASE 
+      WHEN stock <= 0 THEN 'Out of Stock'
+      WHEN stock < 10 THEN 'Low Stock'
+      ELSE 'In Stock'
+    END as status
+  FROM hust_library_book
+`);
+
 console.log('Database views created successfully');
 
 // 示例数据
@@ -282,9 +297,9 @@ db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location)
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (7, 1, 7, 'D区1架')");
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (8, 1, 8, 'D区2架')");
 
-// 插入示例读者信息
-db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (1, 'user001', '北京市海淀区', 1000.00, 3)");
-db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (2, 'user002', '上海市浦东区', 500.00, 2)");
+// 插入示例读者信息 (与用户认证信息关联)
+db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (1, 'admin', '北京市海淀区', 1000.00, 3)");
+db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (2, 'user', '上海市浦东区', 500.00, 2)");
 
 // 插入示例订单信息
 db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, price, time, quantity, reader_id, description, address, status) VALUES (1, 59.99, 20230101, 1, 1, '购买计算机网络教材', '北京市海淀区', '已发货')");
@@ -292,6 +307,10 @@ db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, price, time, quantity, r
 // 插入示例供应商信息
 db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (1, '清华大学出版社', '010-12345678', '计算机类教材')");
 db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (2, '机械工业出版社', '010-87654321', '工程技术类图书')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (3, '人民邮电出版社', '010-12345679', '通信技术类图书')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (4, '重庆出版社', '023-12345678', '文学作品')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (5, '作家出版社', '010-23456789', '文学小说')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, phone, supplyInfo) VALUES (6, '中信出版社', '010-34567890', '经济管理类图书')");
 
 // 插入示例采购单信息
 db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity) VALUES (1, 1, 20)");
