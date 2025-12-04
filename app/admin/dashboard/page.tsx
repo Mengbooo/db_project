@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   Search, 
   LayoutDashboard, 
@@ -142,13 +142,9 @@ const getCreditLevelStyle = (level: number) => {
 };
 
 // 修改AdminDashboard组件以接收props
-export default function AdminDashboard({ searchParams }: { searchParams: Promise<{ adminId?: string }> }) {
+export default function AdminDashboard({ searchParams }: { searchParams: Promise<{ adminId?: string; tab?: string }> }) {
   const router = useRouter();
-  const urlSearchParams = useSearchParams();
-  
-  // 从 URL 获取 tab 参数，默认为 'books'
-  const tabFromUrl = (urlSearchParams.get('tab') as 'books' | 'orders' | 'users' | 'suppliers') || 'books';
-  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>(tabFromUrl);
+  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>('books');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Data State
@@ -179,9 +175,15 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         setLoading(true);
         setError(null);
         
-        // 获取admin ID
+        // 获取admin ID和tab参数
         const params = await searchParams;
         const adminId = params.adminId || '1'; // 默认ID为1
+        const tabParam = params.tab as 'books' | 'orders' | 'users' | 'suppliers' | undefined;
+        
+        // 如果URL中有tab参数，设置为当前tab
+        if (tabParam && ['books', 'orders', 'users', 'suppliers'].includes(tabParam)) {
+          setActiveTab(tabParam);
+        }
         
         // 获取admin dashboard数据
         const response = await fetch(`/api/admin?adminId=${adminId}`);
