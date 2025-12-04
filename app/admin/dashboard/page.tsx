@@ -85,11 +85,7 @@ interface Supplier {
 
 type EditingItem = User | Book | Order | Supplier | null;
 
-const INITIAL_USERS: DisplayUser[] = [
-  { id: "USR-001", full_name: "Alex Chen", username: "alex", email: "alex@design.co", creditLevel: 5, joined: "2022-01-15", status: "Active", role: "user" },
-  { id: "USR-002", full_name: "John Doe", username: "john", email: "john@example.com", creditLevel: 3, joined: "2023-03-10", status: "Active", role: "user" },
-  { id: "USR-003", full_name: "Alice Won", username: "alice", email: "alice@test.com", creditLevel: 2, joined: "2023-05-22", status: "Inactive", role: "user" },
-];
+// Mock数据已移除，使用数据库数据
 
 const INITIAL_BOOKS: Book[] = [
   { id: 101, title: "The Art of Code", author: "Max Howell", price: 89.00, stock: 124, category: "技术", status: "In Stock" },
@@ -251,10 +247,30 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('删除供应商时出错:', error);
         toast.error('删除供应商时发生错误');
       }
+    } else if (type === 'users') {
+      try {
+        // 用户ID直接是数字，不需要转换
+        // 发送删除请求到API
+        const response = await fetch(`/api/users/delete/${id}`, {
+          method: 'DELETE',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          toast.success('用户已删除');
+        } else {
+          toast.error(`删除失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('删除用户时出错:', error);
+        toast.error('删除用户时发生错误');
+      }
     } else {
       // 其他类型的删除保持原有逻辑
       if (type === 'orders') setOrders(orders.filter(i => i.id !== id));
-      if (type === 'users') setUsers(users.filter(i => i.id !== id));
       toast.success('记录已删除');
     }
   };
@@ -374,6 +390,44 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('更新供应商信息时出错:', error);
         toast.error('更新供应商信息时发生错误');
       }
+    } else if (activeTab === 'users' && editingItem) {
+      // 用户编辑逻辑
+      const formData = new FormData(e.target as HTMLFormElement);
+      const userData = {
+        id: (editingItem as User).id,
+        full_name: formData.get('full_name') as string,
+        username: formData.get('username') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        address: formData.get('address') as string,
+        creditLevel: parseInt(formData.get('creditLevel') as string),
+        balance: parseFloat(formData.get('balance') as string)
+      };
+      
+      try {
+        // 发送更新请求到API
+        const response = await fetch('/api/users/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userData),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          setIsModalOpen(false);
+          toast.success('用户信息更新成功');
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('更新用户信息时出错:', error);
+        toast.error('更新用户信息时发生错误');
+      }
     } else if (!editingItem) {
       // 添加新条目的逻辑
       if (activeTab === 'books') {
@@ -447,6 +501,50 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         } catch (error) {
           console.error('添加供应商时出错:', error);
           toast.error('添加供应商时发生错误');
+        }
+      } else if (activeTab === 'users') {
+        // 用户新增逻辑
+        const formData = new FormData(e.target as HTMLFormElement);
+        const userData = {
+          full_name: formData.get('full_name') as string || '新用户',
+          username: formData.get('username') as string,
+          email: formData.get('email') as string,
+          password: formData.get('password') as string || '123456',
+          phone: formData.get('phone') as string || '',
+          address: formData.get('address') as string || '',
+          creditLevel: parseInt(formData.get('creditLevel') as string) || 1,
+          balance: parseFloat(formData.get('balance') as string) || 0
+        };
+        
+        // 验证必需字段
+        if (!userData.username || !userData.email) {
+          toast.error('用户名和邮箱是必需的');
+          return;
+        }
+        
+        try {
+          // 发送新增请求到API
+          const response = await fetch('/api/users/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // 刷新数据
+            await refreshData();
+            setIsModalOpen(false);
+            toast.success('新用户已添加');
+          } else {
+            toast.error(`添加失败: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('添加用户时出错:', error);
+          toast.error('添加用户时发生错误');
         }
       } else {
         // 其他条件 tab 的保存逻辑（保持原有 mock 逻辑）
@@ -820,7 +918,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       </td>
                                       <td className="p-5 text-sm text-gray-400 whitespace-nowrap">{user.role === 'admin' ? '管理员' : '用户'}</td>
                                       <td className="p-5 text-sm text-gray-400 whitespace-nowrap truncate" title={user.phone}>{user.phone}</td>
-                                      <td className="p-5 text-sm text-gray-400 max-w-xs truncate" title={user.profile_address}>{user.profile_address}</td>
+                                      <td className="p-5 text-sm text-gray-400 max-w-[120px] truncate" title={user.profile_address}>{user.profile_address}</td>
                                       <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{user.balance?.toFixed(2) || '0.00'}</td>
                                       <td className="p-5 text-center">
                                           <ActionButtons onEdit={() => handleEdit(user)} onDelete={() => handleDelete(user.id, 'users')} />
@@ -1053,6 +1151,122 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             } 
                             className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
                             placeholder="请输入网站地址" 
+                          />
+                        </div>
+                      </>
+                    ) : activeTab === 'users' ? (
+                      // 用户信息表单
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">姓名</label>
+                          <input 
+                            type="text" 
+                            name="full_name"
+                            defaultValue={
+                              editingItem && 'full_name' in editingItem ? editingItem.full_name as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入姓名" 
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">用户名 {!editingItem && '*'}</label>
+                            <input 
+                              type="text" 
+                              name="username"
+                              defaultValue={
+                                editingItem && 'username' in editingItem ? editingItem.username as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入用户名"
+                              required={!editingItem}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">邮箱 {!editingItem && '*'}</label>
+                            <input 
+                              type="email" 
+                              name="email"
+                              defaultValue={
+                                editingItem && 'email' in editingItem ? editingItem.email as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入邮箱" 
+                              required={!editingItem}
+                            />
+                          </div>
+                        </div>
+                        
+                        {!editingItem && (
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">密码</label>
+                            <input 
+                              type="password" 
+                              name="password"
+                              defaultValue="123456"
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="默认密码: 123456" 
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">电话</label>
+                            <input 
+                              type="text" 
+                              name="phone"
+                              defaultValue={
+                                editingItem && 'phone' in editingItem ? editingItem.phone as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                              placeholder="请输入电话号码" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">会员等级</label>
+                            <select 
+                              name="creditLevel"
+                              defaultValue={
+                                editingItem && 'creditLevel' in editingItem ? (editingItem.creditLevel as number).toString() : '1'
+                              }
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors"
+                            >
+                              <option value="1">普通会员</option>
+                              <option value="2">银卡会员</option>
+                              <option value="3">金卡会员</option>
+                              <option value="4">白金会员</option>
+                              <option value="5">钻石会员</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">地址</label>
+                          <input 
+                            type="text" 
+                            name="address"
+                            defaultValue={
+                              editingItem && 'profile_address' in editingItem ? editingItem.profile_address as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入地址" 
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">余额</label>
+                          <input 
+                            type="number" 
+                            name="balance"
+                            step="0.01"
+                            defaultValue={
+                              editingItem && 'balance' in editingItem ? (editingItem.balance as number).toString() : '0'
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                            placeholder="请输入余额" 
                           />
                         </div>
                       </>
