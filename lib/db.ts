@@ -191,8 +191,8 @@ export const getFullUserInfo = (userId: number) => {
       up.avatar_url,
       r.userId as reader_id,
       r.address as reader_address,
-      r.balance,
-      r.creditLevel
+      up.balance,
+      up.creditLevel
     FROM hust_library_user_auth ua
     LEFT JOIN hust_library_user_profile up ON ua.id = up.auth_id
     LEFT JOIN hust_library_reader r ON ua.id = r.id
@@ -307,7 +307,7 @@ export const getUserOrderHistory = (userId: number) => {
       t.quantity,
       t.price
     FROM hust_library_ticket t
-    JOIN hust_library_book b ON t.id = b.id
+    JOIN hust_library_book b ON t.book_id = b.id
     WHERE t.reader_id = ?
     ORDER BY t.time DESC
   `).all(userId);

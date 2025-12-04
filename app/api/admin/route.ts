@@ -86,15 +86,25 @@ export async function GET(request: Request) {
           publishDate: new Date(book.time * 1000).toISOString().split('T')[0], // 将时间戳转换为日期
         };
       }),
-      orders: tickets.map(ticket => ({
-        id: `ORD-${ticket.id.toString().padStart(4, '0')}`,
-        customer: `用户${ticket.reader_id}`,
-        date: new Date(ticket.time * 1000).toISOString().split('T')[0], // 将时间戳转换为日期
-        total: ticket.price,
-        items: ticket.quantity,
-        status: ticket.status || 'Pending',
-        shippingAddress: ticket.address || '未设置'
-      })),
+      orders: tickets.map((ticket: any) => {
+        // 查找对应的图书信息
+        const book = books.find((b: any) => b.id === ticket.book_id);
+        // 查找对应的用户信息（使用user_profile中的名字和地址）
+        const user: any = usersWithProfiles.find((u: any) => u.id === ticket.reader_id);
+        const customerName = user ? (user.full_name || user.username) : `用户${ticket.reader_id}`;
+        const shippingAddress = user ? (user.address || '未设置') : '未设置';
+        
+        return {
+          id: `ORD-${ticket.id.toString().padStart(4, '0')}`,
+          customer: customerName,
+          date: new Date(ticket.time * 1000).toISOString().split('T')[0], // 将时间戳转换为日期
+          total: ticket.price,
+          items: ticket.quantity,
+          status: ticket.status || 'Pending',
+          shippingAddress: shippingAddress, // 使用user_profile中的地址
+          bookTitle: book ? book.name : '未知图书' // 添加书名
+        };
+      }),
       users: usersWithProfiles.map((user: any) => ({
         id: user.id,
         full_name: user.full_name || user.username,

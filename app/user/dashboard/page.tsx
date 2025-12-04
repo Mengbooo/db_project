@@ -273,6 +273,77 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
     });
   };
 
+  // 结算功能
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      toast.error('购物车为空');
+      return;
+    }
+
+    if (!user) {
+      toast.error('用户信息加载失败');
+      return;
+    }
+
+    const totalAmount = cart.reduce((total, item) => total + (item.book.price * item.quantity), 0);
+
+    // 检查余额
+    if (user.balance < totalAmount) {
+      toast.error(`余额不足！当前余额：¥${user.balance.toFixed(2)}，需要：¥${totalAmount.toFixed(2)}`);
+      return;
+    }
+
+    try {
+      // 准备订单数据
+      const orderItems = cart.map(item => ({
+        bookId: item.book.id,
+        quantity: item.quantity,
+        price: item.book.price
+      }));
+
+      // 调用API创建订单
+      const response = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          items: orderItems,
+          totalAmount,
+          shippingAddress: user.profile_address
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || '订单创建失败');
+      }
+
+      // 订单创建成功
+      toast.success('订单创建成功！', {
+        icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
+        description: `已扣除 ¥${totalAmount.toFixed(2)}，剩余余额：¥${result.remainingBalance.toFixed(2)}`
+      });
+
+      // 清空购物车
+      setCart([]);
+      setShowCart(false);
+
+      // 重新获取数据以更新余额、库存和订单历史
+      const refreshResponse = await fetch(`/api/dashboard?userId=${userId}`);
+      if (refreshResponse.ok) {
+        const refreshedData = await refreshResponse.json();
+        setDashboardData(refreshedData);
+      }
+
+    } catch (error) {
+      console.error('结算失败:', error);
+      toast.error(error instanceof Error ? error.message : '结算失败，请重试');
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#050507] text-[#f5f5f7] font-sans flex items-center justify-center selection:bg-[#0071e3] selection:text-white overflow-hidden relative p-4 md:p-8">
       
@@ -529,7 +600,10 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                         <div className="text-white">
                           总计: <span className="font-bold">¥{cart.reduce((total, item) => total + (item.book.price * item.quantity), 0).toFixed(2)}</span>
                         </div>
-                        <button className="bg-[#0071e3] hover:bg-[#0062c3] text-white px-6 py-2 rounded-xl font-medium transition-colors">
+                        <button 
+                          onClick={handleCheckout}
+                          className="bg-[#0071e3] hover:bg-[#0062c3] text-white px-6 py-2 rounded-xl font-medium transition-colors active:scale-95"
+                        >
                           结算
                         </button>
                       </div>

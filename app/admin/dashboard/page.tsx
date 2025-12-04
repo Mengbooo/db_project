@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Search, 
   LayoutDashboard, 
@@ -71,6 +72,7 @@ interface Order {
   items: number;
   status: string;
   shippingAddress?: string;
+  bookTitle?: string; // 添加书名字段
 }
 
 interface Supplier {
@@ -141,7 +143,12 @@ const getCreditLevelStyle = (level: number) => {
 
 // 修改AdminDashboard组件以接收props
 export default function AdminDashboard({ searchParams }: { searchParams: Promise<{ adminId?: string }> }) {
-  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>('books');
+  const router = useRouter();
+  const urlSearchParams = useSearchParams();
+  
+  // 从 URL 获取 tab 参数，默认为 'books'
+  const tabFromUrl = (urlSearchParams.get('tab') as 'books' | 'orders' | 'users' | 'suppliers') || 'books';
+  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>(tabFromUrl);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Data State
@@ -202,6 +209,18 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
 
     fetchData();
   }, []);
+
+  // 切换 tab 并更新 URL
+  const handleTabChange = async (tab: 'books' | 'orders' | 'users' | 'suppliers') => {
+    setActiveTab(tab);
+    
+    // 获取当前的 adminId
+    const params = await searchParams;
+    const adminId = params.adminId || '1';
+    
+    // 更新 URL，保留 adminId 参数
+    router.push(`/admin/dashboard?adminId=${adminId}&tab=${tab}`);
+  };
 
   // --- Actions ---
   const handleDelete = async (id: string | number, type: string) => {
@@ -268,9 +287,46 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('删除用户时出错:', error);
         toast.error('删除用户时发生错误');
       }
+    } else if (type === 'orders') {
+      // 订单删除逻辑 - 仅允许删除已送达和已取消的订单
+      // 查找订单对象以检查状态
+      const order = orders.find(o => o.id === id);
+      
+      if (!order) {
+        toast.error('订单不存在');
+        return;
+      }
+      
+      // 检查订单状态
+      if (order.status !== '已送达' && order.status !== '已取消') {
+        toast.error(`无法删除状态为“${order.status}”的订单，只能删除“已送达”或“已取消”的订单`);
+        return;
+      }
+      
+      try {
+        // 从订单ID中提取数字 (ORD-0001 -> 1)
+        const orderId = (id as string).replace('ORD-', '');
+        
+        // 发送删除请求到API
+        const response = await fetch(`/api/orders/delete/${orderId}`, {
+          method: 'DELETE',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          toast.success('订单已删除');
+        } else {
+          toast.error(`删除失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('删除订单时出错:', error);
+        toast.error('删除订单时发生错误');
+      }
     } else {
       // 其他类型的删除保持原有逻辑
-      if (type === 'orders') setOrders(orders.filter(i => i.id !== id));
       toast.success('记录已删除');
     }
   };
@@ -427,6 +483,38 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       } catch (error) {
         console.error('更新用户信息时出错:', error);
         toast.error('更新用户信息时发生错误');
+      }
+    } else if (activeTab === 'orders' && editingItem) {
+      // 订单编辑逻辑（仅更新状态）
+      const formData = new FormData(e.target as HTMLFormElement);
+      const orderData = {
+        orderId: (editingItem as Order).id,
+        status: formData.get('status') as string
+      };
+      
+      try {
+        // 发送更新请求到API
+        const response = await fetch('/api/orders/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          setIsModalOpen(false);
+          toast.success('订单状态更新成功');
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('更新订单时出错:', error);
+        toast.error('更新订单时发生错误');
       }
     } else if (!editingItem) {
       // 添加新条目的逻辑
@@ -745,10 +833,10 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
 
                   {/* Navigation */}
                   <nav className="flex flex-col gap-2 px-4">
-                      <NavItem icon={<BookOpen />} label="图书管理" active={activeTab === 'books'} onClick={() => setActiveTab('books')} />
-                      <NavItem icon={<ShoppingBag />} label="订单管理" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} />
-                      <NavItem icon={<Users />} label="用户管理" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-                      <NavItem icon={<Truck />} label="供应商" active={activeTab === 'suppliers'} onClick={() => setActiveTab('suppliers')} />
+                      <NavItem icon={<BookOpen />} label="图书管理" active={activeTab === 'books'} onClick={() => handleTabChange('books')} />
+                      <NavItem icon={<ShoppingBag />} label="订单管理" active={activeTab === 'orders'} onClick={() => handleTabChange('orders')} />
+                      <NavItem icon={<Users />} label="用户管理" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
+                      <NavItem icon={<Truck />} label="供应商" active={activeTab === 'suppliers'} onClick={() => handleTabChange('suppliers')} />
                   </nav>
               </div>
 
@@ -798,13 +886,15 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
                           />
                       </div>
-                      <button 
-                        onClick={handleAddNew}
-                        className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
-                      >
-                          <Plus className="w-4 h-4" />
-                          <span className="hidden sm:inline">新增{activeTab === 'books' ? '图书' : activeTab === 'users' ? '用户' : '条目'}</span>
-                      </button>
+                      {activeTab !== 'orders' && (
+                        <button 
+                          onClick={handleAddNew}
+                          className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">新增{activeTab === 'books' ? '图书' : activeTab === 'users' ? '用户' : '条目'}</span>
+                        </button>
+                      )}
                   </div>
 
                   {/* Table Container */}
@@ -824,6 +914,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                   </>}
                                   {activeTab === 'orders' && <>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">订单号</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">书名</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">客户</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">日期</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">数量</th>
@@ -887,6 +978,9 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               {activeTab === 'orders' && getFilteredOrders().map(order => (
                                   <TableRow key={order.id}>
                                       <td className="p-5 pl-8 text-sm font-mono text-gray-400 whitespace-nowrap truncate" title={order.id}>{order.id}</td>
+                                      <td className="p-5 text-sm text-white max-w-[200px] truncate" title={order.bookTitle || '未知图书'}>
+                                        {order.bookTitle || '未知图书'}
+                                      </td>
                                       <td className="p-5 text-sm font-medium text-white whitespace-nowrap truncate" title={order.customer}>{order.customer}</td>
                                       <td className="p-5 text-sm text-gray-400 whitespace-nowrap">{order.date}</td>
                                       <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{order.items} Items</td>
@@ -1068,6 +1162,108 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             placeholder="请输入出版社/供应商" 
                             required
                           />
+                        </div>
+                      </>
+                    ) : activeTab === 'orders' ? (
+                      // 订单信息表单（仅可修改状态）
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">订单号</label>
+                          <input 
+                            type="text" 
+                            name="orderId"
+                            defaultValue={
+                              editingItem && 'id' in editingItem ? editingItem.id as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                            disabled
+                            readOnly
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">客户</label>
+                            <input 
+                              type="text" 
+                              defaultValue={
+                                editingItem && 'customer' in editingItem ? editingItem.customer as string : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                              disabled
+                              readOnly
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">书名</label>
+                            <input 
+                              type="text" 
+                              defaultValue={
+                                editingItem && 'bookTitle' in editingItem ? editingItem.bookTitle as string : '未知图书'
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                              disabled
+                              readOnly
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">数量</label>
+                            <input 
+                              type="text" 
+                              defaultValue={
+                                editingItem && 'items' in editingItem ? `${editingItem.items} Items` : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                              disabled
+                              readOnly
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">总金额</label>
+                            <input 
+                              type="text" 
+                              defaultValue={
+                                editingItem && 'total' in editingItem ? `¥${(editingItem.total as number).toFixed(2)}` : ''
+                              } 
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                              disabled
+                              readOnly
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">收货地址</label>
+                          <input 
+                            type="text" 
+                            defaultValue={
+                              editingItem && 'shippingAddress' in editingItem ? editingItem.shippingAddress as string : '未设置'
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                            disabled
+                            readOnly
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">订单状态</label>
+                          <select 
+                            name="status"
+                            defaultValue={
+                              editingItem && 'status' in editingItem ? editingItem.status as string : '待出库'
+                            }
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors"
+                          >
+                            <option value="待出库">待出库</option>
+                            <option value="运输中">运输中</option>
+                            <option value="已送达">已送达</option>
+                            <option value="已取消">已取消</option>
+                          </select>
                         </div>
                       </>
                     ) : activeTab === 'suppliers' ? (

@@ -69,6 +69,7 @@ db.exec(`
 db.exec(`
   CREATE TABLE IF NOT EXISTS hust_library_ticket (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER,
     price DECIMAL,
     time INTEGER,
     quantity INTEGER,
@@ -76,7 +77,8 @@ db.exec(`
     description TEXT,
     address VARCHAR(200),
     status VARCHAR(50),
-    FOREIGN KEY (reader_id) REFERENCES hust_library_reader (id)
+    FOREIGN KEY (reader_id) REFERENCES hust_library_reader (id),
+    FOREIGN KEY (book_id) REFERENCES hust_library_book (id)
   )
 `);
 
@@ -110,6 +112,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     book_id INTEGER,
     quantity INTEGER,
+    status VARCHAR(50) DEFAULT '待处理',
     FOREIGN KEY (book_id) REFERENCES hust_library_book (id)
   )
 `);
@@ -307,7 +310,7 @@ db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance
 db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (2, 'user', '上海市浦东区', 500.00, 2)");
 
 // 插入示例订单信息
-db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, price, time, quantity, reader_id, description, address, status) VALUES (1, 59.99, 20230101, 1, 1, '购买计算机网络教材', '北京市海淀区', '已发货')");
+db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, book_id, price, time, quantity, reader_id, description, address, status) VALUES (1, 1, 59.99, 20230101, 1, 1, '购买计算机网络教材', '北京市海淀区', '已发货')");
 
 // 插入示例供应商信息
 db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (1, '清华大学出版社', 'contact@tsinghua.edu.cn', '010-12345678', '计算机,网络', '中国', 'www.tsinghuapress.com')");
@@ -318,7 +321,9 @@ db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, ca
 db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (6, '中信出版社', 'contact@citicpub.com', '010-34567890', '设计,经济管理', '中国', 'www.citicpub.com')");
 
 // 插入示例采购单信息
-db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity) VALUES (1, 1, 20)");
+db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity, status) VALUES (1, 1, 20, '待处理')");
+db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity, status) VALUES (2, 2, 15, '已完成')");
+db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity, status) VALUES (3, 3, 10, '进行中')");
 
 // 插入示例用户认证信息 (新添加)
 db.exec("INSERT OR IGNORE INTO hust_library_user_auth (id, username, email, password_hash, role) VALUES (1, 'admin', 'admin@example.com', '123456', 'admin')");
