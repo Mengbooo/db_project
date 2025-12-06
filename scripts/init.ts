@@ -277,6 +277,10 @@ db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish
 db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (6, '活着', 20200510, 35.00, '作家出版社', '文学,小说', 60, '作家供应商', 6)");
 db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (7, '设计心理学', 20210101, 68.00, '中信出版社', '设计,心理学', 40, '中信供应商', 7)");
 db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (8, '人类简史', 20191212, 52.00, '中信出版社', '历史,人文', 55, '中信供应商', 8)");
+// 哈利波特丛书（seriesNo = 1001）
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (9, '哈利·波特与魔法石', 20201015, 49.00, '人民文学出版社', '魔幻,小说', 120, '人文供应商', 1001)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (10, '哈利·波特与密室', 20201015, 52.00, '人民文学出版社', '魔幻,小说', 115, '人文供应商', 1001)");
+db.exec("INSERT OR IGNORE INTO hust_library_book (id, name, time, price, publish, keyword, stock, supplier, seriesNo) VALUES (11, '哈利·波特与阿兹卡班的囚徒', 20201015, 55.00, '人民文学出版社', '魔幻,小说', 110, '人文供应商', 1001)");
 
 // 插入示例作者信息
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (1, 1, '谢希仁')");
@@ -293,6 +297,10 @@ db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (11, 6, '余华')");
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (12, 7, 'Donald A. Norman')");
 db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (13, 8, '尤瓦尔·赫拉利')");
+// 哈利波特丛书作者
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (14, 9, 'J.K.罗琳')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (15, 10, 'J.K.罗琳')");
+db.exec("INSERT OR IGNORE INTO hust_library_write (id, book_id, writer) VALUES (16, 11, 'J.K.罗琳')");
 
 // 插入示例库存信息
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (1, 1, 1, 'A区1架')");
@@ -304,6 +312,10 @@ db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location)
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (6, 1, 6, 'C区2架')");
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (7, 1, 7, 'D区1架')");
 db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (8, 1, 8, 'D区2架')");
+// 哈利波特丛书库存
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (9, 1, 9, 'E区1架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (10, 1, 10, 'E区2架')");
+db.exec("INSERT OR IGNORE INTO hust_library_store (id, state, book_id, location) VALUES (11, 1, 11, 'E区3架')");
 
 // 插入示例读者信息 (与用户认证信息关联)
 db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance, creditLevel) VALUES (1, 'admin', '北京市海淀区', 1000.00, 3)");
@@ -313,12 +325,13 @@ db.exec("INSERT OR IGNORE INTO hust_library_reader (id, userId, address, balance
 db.exec("INSERT OR IGNORE INTO hust_library_ticket (id, book_id, price, time, quantity, reader_id, description, address, status) VALUES (1, 1, 59.99, 20230101, 1, 1, '购买计算机网络教材', '北京市海淀区', '已发货')");
 
 // 插入示例供应商信息
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (1, '清华大学出版社', 'contact@tsinghua.edu.cn', '010-12345678', '计算机,网络', '中国', 'www.tsinghuapress.com')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (2, '机械工业出版社', 'contact@cip.com.cn', '010-87654321', '计算机,算法', '中国', 'www.cip.com.cn')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (3, '人民邮电出版社', 'contact@ptpress.com.cn', '010-12345679', '计算机,系统', '中国', 'www.ptpress.com.cn')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (4, '重庆出版社', 'contact@cqpress.com', '023-12345678', '科幻,小说', '中国', 'www.cqpress.com')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (5, '作家出版社', 'contact@zuojiachubanshe.com', '010-23456789', '文学,小说', '中国', 'www.zuojiachubanshe.com')");
-db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (6, '中信出版社', 'contact@citicpub.com', '010-34567890', '设计,经济管理', '中国', 'www.citicpub.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (1, '清华供应商', 'contact@tsinghua.edu.cn', '010-12345678', '计算机,网络', '中国', 'www.tsinghuapress.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (2, '机工供应商', 'contact@cip.com.cn', '010-87654321', '计算机,算法', '中国', 'www.cip.com.cn')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (3, '人邮供应商', 'contact@ptpress.com.cn', '010-12345679', '计算机,系统', '中国', 'www.ptpress.com.cn')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (4, '重庆供应商', 'contact@cqpress.com', '023-12345678', '科幻,小说', '中国', 'www.cqpress.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (5, '作家供应商', 'contact@zuojiachubanshe.com', '010-23456789', '文学,小说', '中国', 'www.zuojiachubanshe.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (6, '中信供应商', 'contact@citicpub.com', '010-34567890', '设计,经济管理', '中国', 'www.citicpub.com')");
+db.exec("INSERT OR IGNORE INTO hust_library_supplier (id, name, email, phone, category, region, website) VALUES (7, '人文供应商', 'contact@rwpress.com', '010-45678901', '魔幻,小说', '中国', 'www.rwpress.com')");
 
 // 插入示例采购单信息
 db.exec("INSERT OR IGNORE INTO hust_library_purchase (id, book_id, quantity, status) VALUES (1, 1, 20, '待处理')");

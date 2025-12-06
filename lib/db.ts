@@ -227,7 +227,7 @@ export const getBookStatusView = () => {
 };
 
 // 更新图书信息
-export const updateBook = (id: number, name: string, author: string, price: number, publisher: string, stock: number, keyword: string) => {
+export const updateBook = (id: number, name: string, author: string, price: number, publisher: string, supplier: string, stock: number, keyword: string, seriesNo?: number) => {
   const db = getDatabase();
   
   // 开始事务
@@ -236,16 +236,22 @@ export const updateBook = (id: number, name: string, author: string, price: numb
   try {
     // 更新图书基本信息
     const result = db.prepare(
-      'UPDATE hust_library_book SET name = ?, price = ?, publish = ?, supplier = ?, stock = ?, keyword = ? WHERE id = ?'
-    ).run(name, price, publisher, publisher, stock, keyword, id);
+      'UPDATE hust_library_book SET name = ?, price = ?, publish = ?, supplier = ?, stock = ?, keyword = ?, seriesNo = ? WHERE id = ?'
+    ).run(name, price, publisher, supplier, stock, keyword, seriesNo || 0, id);
     
     // 删除现有的作者信息
     db.prepare('DELETE FROM hust_library_write WHERE book_id = ?').run(id);
     
     // 插入新的作者信息
     if (author) {
-      // 如果作者是逗号分隔的多个作者，需要分别插入
-      const authors = author.split(',').map((a: string) => a.trim()).filter((a: string) => a);
+      // 如果作者是逗号分隔的多个作者，需要分别插入（支持中文逗号和英文逗号）
+      const authors = author.split(/[,，]/).map((a: string) => a.trim()).filter((a: string) => a);
+      
+      // 限制最多4个作者
+      if (authors.length > 4) {
+        throw new Error('每本图书最多只能有4个作者，请用逗号分隔');
+      }
+      
       for (const writer of authors) {
         db.prepare(
           'INSERT INTO hust_library_write (book_id, writer) VALUES (?, ?)'

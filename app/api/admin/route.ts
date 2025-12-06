@@ -83,6 +83,8 @@ export async function GET(request: Request) {
           category: book.keyword || '未分类',
           status: status,
           publisher: book.publish,
+          supplier: book.supplier,
+          seriesNo: book.seriesNo || 0,
           publishDate: new Date(book.time * 1000).toISOString().split('T')[0], // 将时间戳转换为日期
         };
       }),

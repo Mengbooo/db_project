@@ -61,7 +61,9 @@ interface Book {
   category: string;
   status: string;
   publisher?: string;
+  supplier?: string;
   publishDate?: string;
+  seriesNo?: number;
 }
 
 interface Order {
@@ -377,14 +379,27 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     if (activeTab === 'books' && editingItem) {
       // 图书编辑逻辑
       const formData = new FormData(e.target as HTMLFormElement);
+      const authorInput = formData.get('author') as string;
+      
+      // 验证作者数量
+      if (authorInput) {
+        const authors = authorInput.split(/[,，]/).map(a => a.trim()).filter(a => a);
+        if (authors.length > 4) {
+          toast.error('每本图书最多只能有4个作者，请用逗号分隔');
+          return;
+        }
+      }
+      
       const bookData = {
         id: (editingItem as Book).id,
         name: formData.get('title') as string,
-        author: formData.get('author') as string,
+        author: authorInput,
         price: parseFloat(formData.get('price') as string),
         publisher: formData.get('publisher') as string,
+        supplier: formData.get('supplier') as string,
         stock: parseInt(formData.get('stock') as string),
-        keyword: formData.get('category') as string
+        keyword: formData.get('category') as string,
+        seriesNo: parseInt(formData.get('seriesNo') as string) || 0
       };
       
       try {
@@ -523,13 +538,26 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       if (activeTab === 'books') {
         // 获取表单数据
         const formData = new FormData(e.target as HTMLFormElement);
+        const authorInput = formData.get('author') as string || '';
+        
+        // 验证作者数量
+        if (authorInput) {
+          const authors = authorInput.split(/[,，]/).map(a => a.trim()).filter(a => a);
+          if (authors.length > 4) {
+            toast.error('每本图书最多只能有4个作者，请用逗号分隔');
+            return;
+          }
+        }
+        
         const bookData = {
           name: formData.get('title') as string || 'New Book Title',
-          author: formData.get('author') as string || '',
+          author: authorInput,
           price: parseFloat(formData.get('price') as string) || 0,
           publisher: formData.get('publisher') as string || 'Unknown Publisher',
+          supplier: formData.get('supplier') as string || 'Unknown Supplier',
           stock: parseInt(formData.get('stock') as string) || 0,
-          keyword: formData.get('category') as string || 'Uncategorized'
+          keyword: formData.get('category') as string || 'Uncategorized',
+          seriesNo: parseInt(formData.get('seriesNo') as string) || 0
         };
         
         try {
@@ -911,6 +939,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">库存</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">价格</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版社</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版日期</th>
                                   </>}
@@ -948,13 +977,13 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               {/* --- Books Row --- */}
                               {activeTab === 'books' && getFilteredBooks().map(book => (
                                   <TableRow key={book.id}>
-                                      <td className="p-5 pl-8">
+                                      <td className="p-5 pl-8 max-w-[200px]">
                                           <div className="flex items-center gap-3">
                                               <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
                                                   BOOK
                                               </div>
-                                              <div className="min-w-0">
-                                                  <div className="font-medium text-white whitespace-nowrap truncate" title={book.title}>{book.title}</div>
+                                              <div className="min-w-0 flex-1">
+                                                  <div className="font-medium text-white truncate" title={book.title}>{book.title}</div>
                                                   <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${book.id}`}>#{book.id}</div>
                                               </div>
                                           </div>
@@ -969,6 +998,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{book.price.toFixed(2)}</td>
                                       <td className="p-5 whitespace-nowrap"><StatusBadge status={book.status} /></td>
                                       <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.publisher}>{book.publisher}</td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.supplier}>{book.supplier}</td>
                                       <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
                                       <td className="p-5 text-center">
                                           <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => handleDelete(book.id, 'books')} />
@@ -1104,7 +1134,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                 editingItem && 'author' in editingItem ? editingItem.author as string : ''
                               } 
                               className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                              placeholder="请输入作者"
+                              placeholder="请输入作者，多个作者用逗号分隔（支持中英文逗号），最多4个"
                             />
                           </div>
                           <div className="space-y-2">
@@ -1153,7 +1183,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         </div>
                         
                         <div className="space-y-2">
-                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">出版社/供应商</label>
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">出版社</label>
                           <input 
                             type="text" 
                             name="publisher"
@@ -1161,8 +1191,35 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               editingItem && 'publisher' in editingItem ? editingItem.publisher as string : ''
                             } 
                             className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                            placeholder="请输入出版社/供应商" 
+                            placeholder="请输入出版社" 
                             required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">供应商</label>
+                          <input 
+                            type="text" 
+                            name="supplier"
+                            defaultValue={
+                              editingItem && 'supplier' in editingItem ? editingItem.supplier as string : ''
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                            placeholder="请输入供应商" 
+                            required
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">丛书编号</label>
+                          <input 
+                            type="number" 
+                            name="seriesNo"
+                            defaultValue={
+                              editingItem && 'seriesNo' in editingItem ? editingItem.seriesNo as number : 0
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                            placeholder="请输入丛书编号，0表示不属于丛书" 
                           />
                         </div>
                       </>
@@ -1259,12 +1316,16 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             defaultValue={
                               editingItem && 'status' in editingItem ? editingItem.status as string : '待出库'
                             }
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors"
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                              backgroundPosition: 'right 1rem center'
+                            }}
                           >
-                            <option value="待出库">待出库</option>
-                            <option value="运输中">运输中</option>
-                            <option value="已送达">已送达</option>
-                            <option value="已取消">已取消</option>
+                            <option value="待出库" className="bg-[#1d1d1f] text-white py-2">⏳ 待出库</option>
+                            <option value="运输中" className="bg-[#1d1d1f] text-white py-2">🚚 运输中</option>
+                            <option value="已送达" className="bg-[#1d1d1f] text-white py-2">✅ 已送达</option>
+                            <option value="已取消" className="bg-[#1d1d1f] text-white py-2">❌ 已取消</option>
                           </select>
                         </div>
                       </>
@@ -1430,13 +1491,17 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               defaultValue={
                                 editingItem && 'creditLevel' in editingItem ? (editingItem.creditLevel as number).toString() : '1'
                               }
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors"
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                              style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                                backgroundPosition: 'right 1rem center'
+                              }}
                             >
-                              <option value="1">普通会员</option>
-                              <option value="2">银卡会员</option>
-                              <option value="3">金卡会员</option>
-                              <option value="4">白金会员</option>
-                              <option value="5">钻石会员</option>
+                              <option value="1" className="bg-[#1d1d1f] text-white py-2">🅰️ 普通会员</option>
+                              <option value="2" className="bg-[#1d1d1f] text-white py-2">🥈 银卡会员</option>
+                              <option value="3" className="bg-[#1d1d1f] text-white py-2">🥇 金卡会员</option>
+                              <option value="4" className="bg-[#1d1d1f] text-white py-2">⭐ 白金会员</option>
+                              <option value="5" className="bg-[#1d1d1f] text-white py-2">💎 钻石会员</option>
                             </select>
                           </div>
                         </div>
