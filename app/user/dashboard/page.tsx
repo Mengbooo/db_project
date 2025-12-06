@@ -84,6 +84,18 @@ const getCreditLevelName = (level: number) => {
   }
 };
 
+// 根据信用等级计算折扣率
+const getDiscountRate = (level: number) => {
+  switch(level) {
+    case 1: return 0.10; // 10%折扣
+    case 2: return 0.15; // 15%折扣
+    case 3: return 0.15; // 15%折扣
+    case 4: return 0.20; // 20%折扣
+    case 5: return 0.25; // 25%折扣
+    default: return 0.10;
+  }
+};
+
 // 根据信用等级获取对应的样式
 const getCreditLevelStyle = (level: number) => {
   switch(level) {
@@ -273,6 +285,14 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
     });
   };
 
+  // 计算折扣后的总金额
+  const calculateDiscountedTotal = () => {
+    if (!user) return 0;
+    const originalTotal = cart.reduce((total, item) => total + (item.book.price * item.quantity), 0);
+    const discountRate = getDiscountRate(user.creditLevel);
+    return originalTotal * (1 - discountRate);
+  };
+
   // 结算功能
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -285,7 +305,9 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
       return;
     }
 
-    const totalAmount = cart.reduce((total, item) => total + (item.book.price * item.quantity), 0);
+    const originalTotal = cart.reduce((total, item) => total + (item.book.price * item.quantity), 0);
+    const discountRate = getDiscountRate(user.creditLevel);
+    const totalAmount = originalTotal * (1 - discountRate);
 
     // 检查余额
     if (user.balance < totalAmount) {
@@ -311,6 +333,8 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
           userId: user.id,
           items: orderItems,
           totalAmount,
+          originalAmount: originalTotal,
+          discountRate,
           shippingAddress: user.profile_address
         }),
       });
@@ -596,15 +620,42 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                         </div>
                       ))}
                       
-                      <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                        <div className="text-white">
-                          总计: <span className="font-bold">¥{cart.reduce((total, item) => total + (item.book.price * item.quantity), 0).toFixed(2)}</span>
+                      <div className="pt-4 border-t border-white/10 space-y-3">
+                        {/* 会员折扣信息 */}
+                        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-[#86868b]">会员等级</span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${getCreditLevelStyle(user.creditLevel)}`}>
+                              {getCreditLevelName(user.creditLevel)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-[#86868b]">专享折扣</span>
+                            <span className="text-sm font-bold text-[#0071e3]">{(getDiscountRate(user.creditLevel) * 100).toFixed(0)}% OFF</span>
+                          </div>
                         </div>
+                        
+                        {/* 价格明细 */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-[#86868b]">原价</span>
+                            <span className="text-white">¥{cart.reduce((total, item) => total + (item.book.price * item.quantity), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-[#86868b]">会员优惠</span>
+                            <span className="text-green-400">-¥{(cart.reduce((total, item) => total + (item.book.price * item.quantity), 0) * getDiscountRate(user.creditLevel)).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                            <span className="text-white font-medium">应付总额</span>
+                            <span className="text-xl font-bold text-white">¥{calculateDiscountedTotal().toFixed(2)}</span>
+                          </div>
+                        </div>
+                        
                         <button 
                           onClick={handleCheckout}
-                          className="bg-[#0071e3] hover:bg-[#0062c3] text-white px-6 py-2 rounded-xl font-medium transition-colors active:scale-95"
+                          className="w-full bg-[#0071e3] hover:bg-[#0062c3] text-white px-6 py-3 rounded-xl font-medium transition-colors active:scale-95"
                         >
-                          结算
+                          立即结算
                         </button>
                       </div>
                     </div>

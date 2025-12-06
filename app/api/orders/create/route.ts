@@ -4,7 +4,7 @@ import { getDatabase } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, items, totalAmount, shippingAddress } = body;
+    const { userId, items, totalAmount, originalAmount, discountRate, shippingAddress } = body;
 
     // 验证必填字段
     if (!userId || !items || !Array.isArray(items) || items.length === 0) {
@@ -22,13 +22,26 @@ export async function POST(request: Request) {
 
       // 获取用户信息，验证余额
       const user = db.prepare(`
-        SELECT up.balance, up.address 
+        SELECT up.balance, up.address, up.creditLevel
         FROM hust_library_user_profile up
         WHERE up.auth_id = ?
       `).get(userId) as any;
 
       if (!user) {
         throw new Error('用户不存在');
+      }
+
+      // 如果没有传入折扣信息，根据用户信用等级计算
+      let actualDiscountRate = discountRate;
+      if (actualDiscountRate === undefined) {
+        switch(user.creditLevel) {
+          case 1: actualDiscountRate = 0.10; break;
+          case 2: actualDiscountRate = 0.15; break;
+          case 3: actualDiscountRate = 0.15; break;
+          case 4: actualDiscountRate = 0.20; break;
+          case 5: actualDiscountRate = 0.25; break;
+          default: actualDiscountRate = 0.10;
+        }
       }
 
       // 使用传入的地址，如果没有则使用用户默认地址
@@ -94,7 +107,9 @@ export async function POST(request: Request) {
         success: true,
         message: '订单创建成功',
         orderIds,
-        remainingBalance: user.balance - totalAmount
+        remainingBalance: user.balance - totalAmount,
+        discountApplied: actualDiscountRate,
+        originalAmount: originalAmount || totalAmount / (1 - actualDiscountRate)
       });
 
     } catch (error) {
