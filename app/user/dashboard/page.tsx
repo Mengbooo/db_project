@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Search, 
   Plus,
@@ -121,6 +122,7 @@ const getStatusStyle = (status: string) => {
 
 // 修改函数签名以接收搜索参数
 export default function Dashboard({ searchParams }: { searchParams: Promise<{ userId?: string }> }) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   
   // 数据状态
@@ -411,7 +413,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
               <div className="bg-[#2c2c2e]/40 rounded-[24px] p-6 border border-white/5 shadow-lg hover:border-white/10 transition-colors duration-300 relative group">
                   {/* Edit Button */}
                   <button 
-                    onClick={() => alert('跳转到编辑个人信息页面')}
+                    onClick={() => router.push(`/user/profile?userId=${userId}`)}
                     className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-[#86868b] hover:bg-white/10 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                     title="编辑个人信息"
                   >

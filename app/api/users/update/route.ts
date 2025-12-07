@@ -11,7 +11,8 @@ export async function PUT(request: Request) {
       phone, 
       address, 
       creditLevel,
-      balance
+      balance,
+      password // 新增密码字段
     } = await request.json();
 
     // 验证必需字段
@@ -40,6 +41,12 @@ export async function PUT(request: Request) {
       if (email !== undefined) {
         authUpdate.push('email = ?');
         authValues.push(email);
+      }
+      
+      // 如果有密码更新
+      if (password !== undefined) {
+        authUpdate.push('password_hash = ?');
+        authValues.push(password); // 学习项目使用明文密码
       }
       
       // 如果有要更新的字段，则执行更新

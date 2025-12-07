@@ -184,6 +184,7 @@ export const getFullUserInfo = (userId: number) => {
       ua.id,
       ua.username,
       ua.email,
+      ua.password_hash as password,
       ua.role,
       up.full_name,
       up.phone,
