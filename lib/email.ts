@@ -57,7 +57,7 @@ export async function sendEmail({
  */
 export async function sendWelcomeEmail(email: string, username: string) {
   const subject = '欢迎加入 ibookstore';
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
+  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -264,16 +264,16 @@ export async function sendWelcomeEmail(email: string, username: string) {
                     <p style="margin-top: 24px; font-size: 14px; color: #888;">如果在购书过程中遇到任何问题，欢迎随时联系客服。</p>
                     
                     <div class="btn-container">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/user/profile?userId=2" class="button">进入个人中心</a>
+                        <a href="https://db-project-five.vercel.app" class="button">进入个人中心</a>
                     </div>
                 </div>
 
                 <!-- 全新设计的 Footer -->
                 <div class="footer">
                     <div class="footer-links">
-                        <a href="#" class="footer-link">官方网站</a> |
-                        <a href="#" class="footer-link">帮助中心</a> |
-                        <a href="#" class="footer-link">隐私政策</a>
+                        <a href="https://db-project-five.vercel.app" class="footer-link">官方网站</a> |
+                        <a href="https://db-project-five.vercel.app" class="footer-link">帮助中心</a> |
+                        <a href="https://db-project-five.vercel.app" class="footer-link">隐私政策</a>
                     </div>
 
                     <!-- 装饰性元素 (模拟社交媒体点) -->
@@ -324,7 +324,7 @@ export async function sendOrderStatusEmail(
     '派送中': '🚚',
   };
 
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
+  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -502,7 +502,7 @@ export async function sendOrderStatusEmail(
                     <p style="text-align: center; color: #999; font-size: 14px;">感谢您的耐心等待，我们会持续为您追踪物流信息。</p>
                     
                     <div class="btn-container">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/user/profile?userId=2&tab=billing" class="button">查看订单详情</a>
+                        <a href="https://db-project-five.vercel.app" class="button">查看订单详情</a>
                     </div>
                 </div>
 
@@ -551,7 +551,7 @@ export async function sendSupplierPurchaseNotificationEmail(
   quantity: number,
   purchaseOrderId: string
 ) {
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
+  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
