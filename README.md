@@ -1,36 +1,222 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+  <img src="./public/logo.svg" alt="网上书店管理系统" width="200"/>
+  <h1>网上书店管理系统</h1>
+  <p>基于 Next.js + SQLite 的全栈图书管理平台</p>
+</div>
 
-## Getting Started
+---
 
-First, run the development server:
+## 📋 项目简介
+
+本项目是一个功能完善的网上书店管理系统，支持图书管理、订单处理、用户管理、供应商管理等核心业务功能。系统采用现代化的技术栈，提供美观易用的界面和高效稳定的后端服务。
+
+### ✨ 核心功能
+
+- 📚 **图书管理**：图书信息的增删改查、库存管理、补货功能
+- 👥 **用户管理**：用户注册登录、个人信息管理、信用等级系统
+- 📦 **订单管理**：订单创建、状态跟踪、发货管理、取消订单
+- 🏢 **供应商管理**：供应商信息维护、采购单管理、自动邮件通知
+- 📊 **管理后台**：管理员仪表板、数据统计、权限管理
+- 🔍 **搜索功能**：按书名、作者、出版社、ISBN 等多维度搜索
+
+---
+
+## 🛠 技术栈
+
+### 前端
+- **框架**: [Next.js 16](https://nextjs.org/) (App Router)
+- **UI 库**: [React 19](https://react.dev/)
+- **语言**: [TypeScript 5](https://www.typescriptlang.org/)
+- **样式**: [TailwindCSS 4](https://tailwindcss.com/)
+- **图标**: [Lucide React](https://lucide.dev/)
+- **通知**: [Sonner](https://sonner.emilkowal.ski/)
+
+### 后端
+- **运行时**: Node.js
+- **API**: Next.js API Routes
+- **数据库**: SQLite (Better-SQLite3)
+- **ORM**: [Prisma 7](https://www.prisma.io/)
+- **加密**: bcryptjs
+- **邮件服务**: [Resend](https://resend.com/)
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Node.js 20 或更高版本
+- npm / yarn / pnpm / bun
+
+### 安装依赖
+
+```bash
+npm install
+# 或
+yarn install
+# 或
+pnpm install
+```
+
+### 初始化数据库
+
+首次运行项目前，需要初始化数据库并创建示例数据：
+
+```bash
+npm run db:init
+```
+
+该命令会：
+- 创建所有必需的数据表
+- 插入示例用户、图书、供应商等数据
+- 设置数据库触发器和视图
+
+### 启动开发服务器
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+服务器将在 [http://localhost:3001](http://localhost:3001) 启动。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 构建生产版本
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📁 项目结构
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+db_project/
+├── app/                    # Next.js App Router 应用目录
+│   ├── api/               # API 路由
+│   │   ├── auth/          # 认证相关 API
+│   │   ├── books/         # 图书管理 API
+│   │   ├── orders/        # 订单管理 API
+│   │   ├── suppliers/     # 供应商管理 API
+│   │   ├── users/         # 用户管理 API
+│   │   └── email/         # 邮件服务 API
+│   ├── admin/             # 管理员页面
+│   ├── user/              # 用户页面
+│   ├── auth/              # 认证页面
+│   └── globals.css        # 全局样式
+├── lib/                   # 工具库
+│   ├── db.ts              # 数据库连接和操作
+│   └── email.ts           # 邮件服务配置
+├── scripts/               # 脚本文件
+│   └── init.ts            # 数据库初始化脚本
+├── public/                # 静态资源
+├── db/                    # SQLite 数据库文件
+└── docs/                  # 项目文档
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 👤 默认账户
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+数据库初始化后，可使用以下账户登录：
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 管理员账户
+- **用户名**: `admin`
+- **密码**: `admin123`
+
+### 普通用户账户
+- **用户名**: `user`
+- **密码**: `user123`
+
+---
+
+## 🔧 主要功能说明
+
+### 用户角色
+
+系统支持两种用户角色：
+- **管理员（admin）**：拥有完整的系统管理权限
+- **读者（reader）**：普通用户，可浏览图书、下单购买
+
+### 信用等级系统
+
+用户信用等级分为 5 级，不同等级享有不同折扣和透支权限：
+
+| 等级 | 折扣 | 透支政策 |
+|------|------|----------|
+| 1级  | 10% | 不可透支 |
+| 2级  | 15% | 不可透支 |
+| 3级  | 15% | 限额透支 |
+| 4级  | 20% | 限额透支 |
+| 5级  | 25% | 无限透支 |
+
+### 订单状态
+
+- **待处理（pending）**：订单已创建，等待处理
+- **已发货（shipped）**：订单已发货
+- **已送达（delivered）**：订单已送达
+- **已取消（cancelled）**：订单已取消
+
+### 邮件通知
+
+系统集成了 Resend 邮件服务，支持：
+- 采购订单自动发送给供应商
+- 订单状态变更通知用户
+- 库存不足提醒管理员
+
+---
+
+## 📝 数据库设计
+
+系统使用 SQLite 数据库，主要数据表包括：
+
+- `hust_library_user` - 用户信息表
+- `hust_library_book` - 图书信息表
+- `hust_library_order` - 订单表
+- `hust_library_supplier` - 供应商表
+- `hust_library_purchase_order` - 采购订单表
+
+数据库包含触发器和视图，用于自动化业务逻辑处理。
+
+---
+
+## 🤝 开发指南
+
+### 添加新的 API 路由
+
+在 `app/api/` 目录下创建对应的路由文件：
+
+```typescript
+// app/api/example/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getDatabase } from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  const db = getDatabase();
+  // 数据库操作
+  return NextResponse.json({ data: result });
+}
+```
+
+### 创建新页面
+
+在 `app/` 目录下创建对应的页面文件：
+
+```typescript
+// app/example/page.tsx
+export default function ExamplePage() {
+  return <div>Example Page</div>;
+}
+```
+
+---
+
+## 📄 许可证
+
+本项目仅用于学习和教育目的。
+
+---
+
+## 📞 联系方式
+
+如有问题或建议，欢迎提出 Issue 或 Pull Request。
