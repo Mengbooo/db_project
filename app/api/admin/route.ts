@@ -23,6 +23,23 @@ export async function GET(request: Request) {
     const tickets: any[] = getTickets();
     const suppliers: any[] = getSuppliers();
     
+    // 获取采购单数据（含有书名、供应商、供应商邮箱）
+    const dbForPurchase = getDatabase();
+    const purchaseOrders: any[] = dbForPurchase.prepare(`
+      SELECT 
+        p.id,
+        p.book_id,
+        p.quantity,
+        p.status,
+        b.name as book_name,
+        b.supplier as supplier_name,
+        s.email as supplier_email
+      FROM hust_library_purchase p
+      LEFT JOIN hust_library_book b ON p.book_id = b.id
+      LEFT JOIN hust_library_supplier s ON b.supplier = s.name
+    `).all();
+    dbForPurchase.close();
+    
     // 获取图书状态视图
     const bookStatusView: any[] = getBookStatusView();
     
@@ -138,6 +155,15 @@ export async function GET(request: Request) {
         region: supplier.region || '中国',
         phone: supplier.phone || '未设置电话',
         website: supplier.website || '未设置网站',
+      })),
+      purchaseOrders: purchaseOrders.map((purchase: any) => ({
+        id: purchase.id.toString(),
+        bookId: purchase.book_id,
+        bookTitle: purchase.book_name || '未知图书',
+        supplier: purchase.supplier_name || '未设置',
+        supplierEmail: purchase.supplier_email || '未设置',
+        quantity: purchase.quantity,
+        status: purchase.status || '待处理'
       }))
     });
   } catch (error) {

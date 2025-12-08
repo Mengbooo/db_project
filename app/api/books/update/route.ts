@@ -5,6 +5,14 @@ export async function PUT(request: Request) {
   try {
     const { id, name, author, price, publisher, supplier, stock, keyword, seriesNo } = await request.json();
     
+    // 验证库存不能为负数
+    if (stock !== undefined && stock < 0) {
+      return NextResponse.json(
+        { success: false, message: '库存数量不能低于0' },
+        { status: 400 }
+      );
+    }
+    
     // 更新图书信息
     const result = updateBook(id, name, author, price, publisher, supplier, stock, keyword, seriesNo);
     

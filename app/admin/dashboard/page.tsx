@@ -17,11 +17,13 @@ import {
   Trash2, 
   CheckCircle2, 
   AlertCircle, 
-  Clock, 
+  Clock,
+  ShoppingCart,
   X,
   Save,
   Bell,
-  ShieldCheck
+  ShieldCheck,
+  Mail
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -68,13 +70,18 @@ interface Book {
 
 interface Order {
   id: string;
-  customer: string;
-  date: string;
-  total: number;
-  items: number;
+  bookId?: number; // 书签 ID
+  bookTitle?: string; // 书名
+  supplier?: string; // 供应商
+  supplierEmail?: string; // 供应商邮箱
+  quantity: number; // 数量
   status: string;
+  // 以下为纳入争章的旧字段（可保或不用）
+  customer?: string;
+  date?: string;
+  total?: number;
+  items?: number;
   shippingAddress?: string;
-  bookTitle?: string; // 添加书名字段
 }
 
 interface Supplier {
@@ -100,10 +107,10 @@ const INITIAL_BOOKS: Book[] = [
 ];
 
 const INITIAL_ORDERS: Order[] = [
-  { id: "ORD-7728", customer: "Alex Chen", date: "2023-10-24", total: 189.00, items: 3, status: "Completed" },
-  { id: "ORD-7729", customer: "Sarah Smith", date: "2023-10-24", total: 45.00, items: 1, status: "Processing" },
-  { id: "ORD-7730", customer: "Mike Jones", date: "2023-10-23", total: 256.00, items: 4, status: "Pending" },
-  { id: "ORD-7731", customer: "Emily Yu", date: "2023-10-23", total: 89.00, items: 1, status: "Cancelled" },
+  { id: "ORD-7728", bookTitle: "计算机网络", supplier: "清华供应商", supplierEmail: "contact@tsinghua.edu.cn", quantity: 20, status: "Completed", customer: "Alex Chen", date: "2023-10-24", total: 189.00, items: 3 },
+  { id: "ORD-7729", bookTitle: "数据库系统概念", supplier: "機工供应商", supplierEmail: "contact@cip.com.cn", quantity: 15, status: "Processing", customer: "Sarah Smith", date: "2023-10-24", total: 45.00, items: 1 },
+  { id: "ORD-7730", bookTitle: "深入理解计算机系统", supplier: "人邮供应商", supplierEmail: "contact@ptpress.com.cn", quantity: 10, status: "Pending", customer: "Mike Jones", date: "2023-10-23", total: 256.00, items: 4 },
+  { id: "ORD-7731", bookTitle: "算法导论", supplier: "機工供应商", supplierEmail: "contact@cip.com.cn", quantity: 8, status: "Cancelled", customer: "Emily Yu", date: "2023-10-23", total: 89.00, items: 1 },
 ];
 
 const INITIAL_SUPPLIERS: Supplier[] = [
@@ -148,10 +155,13 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers' | 'shortage'>('books');
   const [searchQuery, setSearchQuery] = useState('');
+  const [shortageSearchQuery, setShortageSearchQuery] = useState(''); // 专用于缺书书籍搜索
+  const [purchaseSearchQuery, setPurchaseSearchQuery] = useState(''); // 专用于采购单搜索
   
   // Data State
   const [books, setBooks] = useState<Book[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +176,11 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [restockItemId, setRestockItemId] = useState<number | null>(null);
   const [restockQuantity, setRestockQuantity] = useState(10);
+  
+  // Quick Purchase Modal State
+  const [isQuickPurchaseModalOpen, setIsQuickPurchaseModalOpen] = useState(false);
+  const [quickPurchaseBookId, setQuickPurchaseBookId] = useState<number | null>(null);
+  const [quickPurchaseQuantity, setQuickPurchaseQuantity] = useState(1);
   
   // Supplier Notification State
   const [notificationSupplier, setNotificationSupplier] = useState<string | null>(null);
@@ -207,6 +222,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         const data = await response.json();
         setBooks(data.books);
         setOrders(data.orders);
+        setPurchaseOrders(data.purchaseOrders || []);
         setUsers(data.users);
         setSuppliers(data.suppliers);
         
@@ -340,6 +356,41 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('删除订单时出错:', error);
         toast.error('删除订单时发生错误');
       }
+    } else if (type === 'purchaseOrders') {
+      // 采购单删除逻辑 - 仅允许删除已完成和已取消的采购单
+      // 查找采购单对象以检查状态
+      const purchaseOrder = purchaseOrders.find(o => o.id === id);
+      
+      if (!purchaseOrder) {
+        toast.error('采购单不存在');
+        return;
+      }
+      
+      // 检查采购单状态
+      if (purchaseOrder.status !== '已完成' && purchaseOrder.status !== '已取消') {
+        toast.error(`无法删除状态为"${purchaseOrder.status}"的采购单，只能删除"已完成"或"已取消"的采购单`);
+        return;
+      }
+      
+      try {
+        // 发送删除请求到API
+        const response = await fetch(`/api/purchase-orders/delete/${id}`, {
+          method: 'DELETE',
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          toast.success('采购单已删除');
+        } else {
+          toast.error(`删除失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('删除采购单时出错:', error);
+        toast.error('删除采购单时发生错误');
+      }
     } else {
       // 其他类型的删除保持原有逻辑
       toast.success('记录已删除');
@@ -371,6 +422,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       const data = await response.json();
       setBooks(data.books);
       setOrders(data.orders);
+      setPurchaseOrders(data.purchaseOrders || []);
       setUsers(data.users);
       setSuppliers(data.suppliers);
       
@@ -412,6 +464,12 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         keyword: formData.get('category') as string,
         seriesNo: parseInt(formData.get('seriesNo') as string) || 0
       };
+      
+      // 验证库存不能为负数
+      if (bookData.stock < 0) {
+        toast.error('库存数量不能低于0');
+        return;
+      }
       
       try {
         // 发送更新请求到API
@@ -544,6 +602,48 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         console.error('更新订单时出错:', error);
         toast.error('更新订单时发生错误');
       }
+    } else if (activeTab === 'shortage' && editingItem) {
+      // 采购单编辑逻辑（仅更新状态和数量）
+      const formData = new FormData(e.target as HTMLFormElement);
+      const currentStatus = editingItem && 'status' in editingItem ? (editingItem.status as string) : '待处理';
+      const newStatus = formData.get('status') as string;
+      let quantity = parseInt(formData.get('quantity') as string) || (editingItem && 'quantity' in editingItem ? editingItem.quantity : 0);
+      
+      // 仅待处理状态可修改数量，其他状态只保持原数量
+      if (currentStatus !== '待处理') {
+        quantity = editingItem && 'quantity' in editingItem ? (editingItem.quantity as number) : 0;
+      }
+      
+      const purchaseData = {
+        id: (editingItem as Order).id,
+        quantity: quantity,
+        status: newStatus
+      };
+      
+      try {
+        // 发送更新请求到API
+        const response = await fetch('/api/purchase-orders/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(purchaseData),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 刷新数据
+          await refreshData();
+          setIsModalOpen(false);
+          toast.success('采购单已更新');
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('更新采购单时出错:', error);
+        toast.error('更新采购单时发生错误');
+      }
     } else if (!editingItem) {
       // 添加新条目的逻辑
       if (activeTab === 'books') {
@@ -570,6 +670,12 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
           keyword: formData.get('category') as string || 'Uncategorized',
           seriesNo: parseInt(formData.get('seriesNo') as string) || 0
         };
+        
+        // 验证库存不能为负数
+        if (bookData.stock < 0) {
+          toast.error('库存数量不能低于0');
+          return;
+        }
         
         try {
           // 发送新增请求到API
@@ -675,6 +781,50 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
           console.error('添加用户时出错:', error);
           toast.error('添加用户时发生错误');
         }
+      } else if (activeTab === 'shortage' && !editingItem) {
+        // 采购单新增逻辑
+        const formData = new FormData(e.target as HTMLFormElement);
+        const bookId = parseInt(formData.get('book_id') as string);
+        const quantity = parseInt(formData.get('quantity') as string);
+        
+        // 验证下单需求的汰
+        if (!bookId || bookId <= 0) {
+          toast.error('请选择一个有效的图书');
+          return;
+        }
+        
+        if (!quantity || quantity <= 0) {
+          toast.error('请输入有效的采购数量');
+          return;
+        }
+        
+        try {
+          // 发送新增请求到API
+          const response = await fetch('/api/purchase-orders/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              book_id: bookId,
+              quantity: quantity
+            }),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // 刷新数据
+            await refreshData();
+            setIsModalOpen(false);
+            toast.success('新采购单已创建');
+          } else {
+            toast.error(`添加失败: ${result.message}`);
+          }
+        } catch (error) {
+          console.error('创建采购单时出错:', error);
+          toast.error('创建采购单时发生错误');
+        }
       } else {
         // 其他条件 tab 的保存逻辑（保持原有 mock 逻辑）
         setIsModalOpen(false);
@@ -696,6 +846,47 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     setTimeout(() => {
       setNotificationSupplier(null);
     }, 2000);
+  };
+
+  // 联系供应商函数
+  const handleContactSupplier = async (orderId: string, supplierName: string, supplierEmail: string, currentStatus: string) => {
+    // 如果是“待处理”状态，更新为“已完成”
+    if (currentStatus === '待处理') {
+      try {
+        const response = await fetch('/api/purchase-orders/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: orderId,
+            quantity: -1, // 文件字段不修改，空値表示不修改
+            status: '已完成'
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          await refreshData();
+          toast.success(`已联系供应商${supplierName}补货`, {
+            description: `邮箱: ${supplierEmail}`,
+            duration: 3000,
+          });
+        } else {
+          toast.error(`更新失败: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('联系供应商时出错:', error);
+        toast.error('联系供应商时发生错误');
+      }
+    } else {
+      // 其他状态下，空顯示提示信息
+      toast.success(`已联系供应商${supplierName}补货`, {
+        description: `邮箱: ${supplierEmail}`,
+        duration: 3000,
+      });
+    }
   };
 
   const handleRestock = (id: number) => {
@@ -753,7 +944,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   // 缺书和采购标签页的过滤函数 - 过滤掉In Stock状态的图书
   const getFilteredShortageBooks = () => {
     return books.filter(book => 
-      book.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      book.title.toLowerCase().includes(shortageSearchQuery.toLowerCase()) &&
       book.status !== 'In Stock'
     );
   };
@@ -762,6 +953,19 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     return orders.filter(order => 
       order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  };
+  
+  // 采购单过滤函数 - 支持按订单号和书名搜索
+  const getFilteredPurchaseOrders = () => {
+    return purchaseOrders.filter(order => 
+      order.id.toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
+      (order.bookTitle && order.bookTitle.toLowerCase().includes(purchaseSearchQuery.toLowerCase()))
+    );
+  };
+  
+  // 检查某本书是否有采购单
+  const hasPurchaseOrder = (bookId: number) => {
+    return purchaseOrders.some(order => order.bookId === bookId);
   };
   
   const getFilteredUsers = () => {
@@ -783,6 +987,18 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       case 'In Stock': case 'Completed': case 'Active': return 'bg-green-500/10 text-green-400 border-green-500/20';
       case 'Low Stock': case 'Processing': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
       case 'Out of Stock': case 'Cancelled': case 'Inactive': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      default: return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    }
+  };
+
+  // 采购单状态颜色函数
+  const getPurchaseStatusColor = (status: string) => {
+    switch (status) {
+      case '待处理': return 'bg-gray-500/10 text-gray-400 border-gray-500/20'; // 灰色
+      case '待发货': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'; // 黄色
+      case '运输中': return 'bg-blue-500/10 text-blue-400 border-blue-500/20'; // 蓝色
+      case '已完成': return 'bg-green-500/10 text-green-400 border-green-500/20'; // 绿色
+      case '已取消': return 'bg-red-500/10 text-red-400 border-red-500/20'; // 红色
       default: return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     }
   };
@@ -926,31 +1142,253 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                   
                   {/* Content Actions: Search and Add Button */}
-                  <div className="flex items-center justify-between mb-6 gap-4">
-                      <div className="relative group flex-1 min-w-0">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b] group-focus-within:text-[#0071e3] transition-colors" />
-                          <input 
-                              type="text" 
-                              placeholder={`搜索${activeTab === 'books' ? '图书' : activeTab === 'orders' ? '订单' : activeTab === 'users' ? '用户' : '供应商'}...`}
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
-                          />
+                  {activeTab !== 'shortage' && (
+                    <div className="flex items-center justify-between mb-6 gap-4">
+                        <div className="relative group flex-1 min-w-0">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b] group-focus-within:text-[#0071e3] transition-colors" />
+                            <input 
+                                type="text" 
+                                placeholder={`搜索${activeTab === 'books' ? '图书' : activeTab === 'orders' ? '订单' : activeTab === 'users' ? '用户' : '供应商'}...`}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
+                            />
+                        </div>
+                        {activeTab !== 'orders' && (
+                          <button 
+                            onClick={handleAddNew}
+                            className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
+                          >
+                              <Plus className="w-4 h-4" />
+                              <span className="hidden sm:inline">新增{activeTab === 'books' ? '图书' : activeTab === 'users' ? '用户' : '条目'}</span>
+                          </button>
+                        )}
+                    </div>
+                  )}
+                  
+                  {/* Shortage Tab - Two Tables Layout */}
+                  {activeTab === 'shortage' && (
+                    <>
+                      {/* Shortage Books Section */}
+                      <div>
+                        {/* Shortage Books Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                            缺书书籍
+                          </h2>
+                        </div>
+                        
+                        {/* Shortage Books Table */}
+                        <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm mb-8">
+                          {/* Search Bar for Shortage Books */}
+                          <div className="p-4 border-b border-white/5">
+                            <div className="relative group flex-1">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b] group-focus-within:text-[#0071e3] transition-colors" />
+                              <input 
+                                  type="text" 
+                                  placeholder="搜索缺书书籍..."
+                                  value={shortageSearchQuery}
+                                  onChange={(e) => setShortageSearchQuery(e.target.value)}
+                                  className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
+                              />
+                            </div>
+                          </div>
+                          
+                          <table className="w-full text-left border-collapse">
+                              <thead className="bg-white/[0.02] border-b border-white/5">
+                                  <tr>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">ID / 书名</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">作者</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">库存</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">价格</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版社</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版日期</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">采购单状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                  {getFilteredShortageBooks().map(book => (
+                                      <TableRow key={book.id}>
+                                          <td className="p-5 pl-8 max-w-[200px]">
+                                              <div className="flex items-center gap-3">
+                                                  <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
+                                                      BOOK
+                                                  </div>
+                                                  <div className="min-w-0 flex-1">
+                                                      <div className="font-medium text-white truncate" title={book.title}>{book.title}</div>
+                                                      <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${book.id}`}>#{book.id}</div>
+                                                  </div>
+                                              </div>
+                                          </td>
+                                          <td className="p-5 text-sm text-gray-300 max-w-[120px] truncate" title={book.author}>{book.author}</td>
+                                          <td className="p-5">
+                                              <span className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 whitespace-nowrap">
+                                                  {book.category.split(',')[0] || book.category.split(' ')[0] || book.category}
+                                              </span>
+                                          </td>
+                                          <td className="p-5 text-sm text-gray-300">{book.stock}</td>
+                                          <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{book.price.toFixed(2)}</td>
+                                          <td className="p-5 whitespace-nowrap"><StatusBadge status={book.status} /></td>
+                                          <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.publisher}>{book.publisher}</td>
+                                          <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.supplier}>{book.supplier}</td>
+                                          <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
+                                          <td className="p-5 text-sm text-white">
+                                            {hasPurchaseOrder(book.id) ? (
+                                              <span className="px-2 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-xs whitespace-nowrap">
+                                                已有采购单
+                                              </span>
+                                            ) : (
+                                              <span className="px-2 py-1 rounded-md bg-gray-500/10 border border-gray-500/20 text-gray-400 text-xs whitespace-nowrap">
+                                                无采购单
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="p-5 text-center">
+                                              <button
+                                                onClick={() => {
+                                                  setQuickPurchaseBookId(book.id);
+                                                  setQuickPurchaseQuantity(1);
+                                                  setIsQuickPurchaseModalOpen(true);
+                                                }}
+                                                className="inline-flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95"
+                                                title="采购该书籍"
+                                              >
+                                                <span>采购</span>
+                                              </button>
+                                          </td>
+                                      </TableRow>
+                                  ))}
+                              </tbody>
+                          </table>
+                        </div>
                       </div>
-                      {activeTab !== 'orders' && (
-                        <button 
-                          onClick={handleAddNew}
-                          className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">新增{activeTab === 'books' ? '图书' : activeTab === 'users' ? '用户' : '条目'}</span>
-                        </button>
-                      )}
-                  </div>
-
-                  {/* Table Container */}
-                  <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
-                      <table className="w-full text-left border-collapse">
+                      
+                      {/* Divider */}
+                      <div className="my-12">
+                        <div className="border-t border-white/10"></div>
+                      </div>
+                      
+                      {/* Purchase Orders Section */}
+                      <div>
+                        {/* Purchase Orders Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                            采购单
+                          </h2>
+                          <button 
+                            onClick={handleAddNew}
+                            className="flex items-center gap-2 bg-[#0071e3] hover:bg-[#0062c3] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-500/20 active:scale-95 border border-transparent hover:border-white/10 whitespace-nowrap"
+                          >
+                              <Plus className="w-4 h-4" />
+                              <span className="hidden sm:inline">新增采购单</span>
+                          </button>
+                        </div>
+                        
+                        {/* Purchase Orders Table */}
+                        <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm mb-8">
+                          {/* Search Bar for Purchase Orders */}
+                          <div className="p-4 border-b border-white/5">
+                            <div className="relative group flex-1">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b] group-focus-within:text-[#0071e3] transition-colors" />
+                              <input 
+                                  type="text" 
+                                  placeholder="搜索订单号或书名..."
+                                  value={purchaseSearchQuery}
+                                  onChange={(e) => setPurchaseSearchQuery(e.target.value)}
+                                  className="w-full bg-[#1c1c1e]/60 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#0071e3] focus:bg-[#1c1c1e] transition-all outline-none placeholder:text-[#515154]"
+                              />
+                            </div>
+                          </div>
+                          
+                          <table className="w-full text-left border-collapse">
+                              <thead className="bg-white/[0.02] border-b border-white/5">
+                                  <tr>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">ID / 订单号</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">书名</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商邮箱</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">数量</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                  {getFilteredPurchaseOrders().map(order => (
+                                      <TableRow key={order.id}>
+                                          <td className="p-5 pl-8 max-w-[200px]">
+                                              <div className="flex items-center gap-3">
+                                                  <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
+                                                      ORDER
+                                                  </div>
+                                                  <div className="min-w-0 flex-1">
+                                                      <div className="font-medium text-white truncate" title={order.id}>{order.id}</div>
+                                                      <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${order.id}`}>#{order.id}</div>
+                                                  </div>
+                                              </div>
+                                          </td>
+                                          <td className="p-5 text-sm text-gray-300 max-w-[120px] truncate" title={order.bookTitle || '未知图书'}>{order.bookTitle || '未知图书'}</td>
+                                          <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={order.supplier || '未设置'}>{order.supplier || '未设置'}</td>
+                                          <td className="p-5 text-sm text-[#0071e3] truncate" title={order.supplierEmail || '未设置'}>{order.supplierEmail || '未设置'}</td>
+                                          <td className="p-5 text-sm text-gray-300">{order.quantity}</td>
+                                          <td className="p-5 whitespace-nowrap">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPurchaseStatusColor(order.status)}`}>
+                                              {order.status}
+                                            </span>
+                                          </td>
+                                          <td className="p-5 text-center">
+                                              <div className="flex items-center justify-center gap-2">
+                                                <button
+                                                  onClick={() => handleEdit(order)}
+                                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-colors"
+                                                  title="编辑采购单"
+                                                >
+                                                  <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleContactSupplier(order.id, order.supplier || '未知', order.supplierEmail || '未设置', order.status)}
+                                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 transition-colors"
+                                                  title="联系供应商"
+                                                >
+                                                  <Mail className="w-4 h-4" />
+                                                </button>
+                                                {order.status === '待处理' && (
+                                                  <button
+                                                    onClick={() => {
+                                                      const newData = { ...order, status: '已取消' };
+                                                      handleEdit(newData);
+                                                    }}
+                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 transition-colors"
+                                                    title="取消采购单"
+                                                  >
+                                                    <X className="w-4 h-4" />
+                                                  </button>
+                                                )}
+                                                <button
+                                                  onClick={() => handleDelete(order.id, 'purchaseOrders')}
+                                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                                                  title="删除采购单"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                          </td>
+                                      </TableRow>
+                                  ))}
+                              </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Regular Table for Other Tabs */}
+                  {activeTab !== 'shortage' && (
+                      <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
+                          <table className="w-full text-left border-collapse">
                           <thead className="bg-white/[0.02] border-b border-white/5">
                               <tr>
                                   {activeTab === 'books' && <>
@@ -991,55 +1429,12 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">电话</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">网站</th>
                                   </>}
-                                  {activeTab === 'shortage' && <>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">ID / 书名</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">作者</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">库存</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">价格</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版社</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
-                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版日期</th>
-                                  </>}
                                   <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
                               {/* --- Books Row --- */}
                               {activeTab === 'books' && getFilteredBooks().map(book => (
-                                  <TableRow key={book.id}>
-                                      <td className="p-5 pl-8 max-w-[200px]">
-                                          <div className="flex items-center gap-3">
-                                              <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
-                                                  BOOK
-                                              </div>
-                                              <div className="min-w-0 flex-1">
-                                                  <div className="font-medium text-white truncate" title={book.title}>{book.title}</div>
-                                                  <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${book.id}`}>#{book.id}</div>
-                                              </div>
-                                          </div>
-                                      </td>
-                                      <td className="p-5 text-sm text-gray-300 max-w-[120px] truncate" title={book.author}>{book.author}</td>
-                                      <td className="p-5">
-                                          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 whitespace-nowrap">
-                                              {book.category.split(',')[0] || book.category.split(' ')[0] || book.category}
-                                          </span>
-                                      </td>
-                                      <td className="p-5 text-sm text-gray-300">{book.stock}</td>
-                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{book.price.toFixed(2)}</td>
-                                      <td className="p-5 whitespace-nowrap"><StatusBadge status={book.status} /></td>
-                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.publisher}>{book.publisher}</td>
-                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.supplier}>{book.supplier}</td>
-                                      <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
-                                      <td className="p-5 text-center">
-                                          <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => handleDelete(book.id, 'books')} />
-                                      </td>
-                                  </TableRow>
-                              ))}
-
-                              {/* --- Shortage Row (Same as Books) --- */}
-                              {activeTab === 'shortage' && getFilteredShortageBooks().map(book => (
                                   <TableRow key={book.id}>
                                       <td className="p-5 pl-8 max-w-[200px]">
                                           <div className="flex items-center gap-3">
@@ -1080,7 +1475,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 text-sm font-medium text-white whitespace-nowrap truncate" title={order.customer}>{order.customer}</td>
                                       <td className="p-5 text-sm text-gray-400 whitespace-nowrap">{order.date}</td>
                                       <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{order.items} Items</td>
-                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{order.total.toFixed(2)}</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{order.total?.toFixed(2) || '0.00'}</td>
                                       <td className="p-5 whitespace-nowrap"><StatusBadge status={order.status} /></td>
                                       <td className="p-5 text-sm text-gray-300 max-w-xs truncate" title={order.shippingAddress || '未设置'}>{order.shippingAddress || '未设置'}</td>
                                       <td className="p-5 text-center">
@@ -1155,6 +1550,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                           </tbody>
                       </table>
                   </div>
+                  )}
 
               </div>
           </main>
@@ -1219,7 +1615,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">库存</label>
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">库存 *</label>
                             <input 
                               type="number" 
                               name="stock"
@@ -1229,7 +1625,9 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                               className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
                               placeholder="请输入库存数量" 
                               required
+                              min="0"
                             />
+                            <p className="text-xs text-yellow-500/70 mt-1">⚠️ 库存数量不能低于0</p>
                           </div>
                           <div className="space-y-2">
                             <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">分类</label>
@@ -1477,6 +1875,129 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                           />
                         </div>
                       </>
+                    ) : activeTab === 'shortage' && !editingItem ? (
+                      // 新增采购单表单
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">书籍 *</label>
+                          <select 
+                            name="book_id"
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                              backgroundPosition: 'right 1rem center'
+                            }}
+                            required
+                          >
+                            <option value="" className="bg-[#1d1d1f] text-gray-400">-- 请选择一本图书 --</option>
+                            {books.map(book => (
+                              <option key={book.id} value={book.id} className="bg-[#1d1d1f] text-white">
+                                {book.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">采购数量 *</label>
+                          <input 
+                            type="number" 
+                            name="quantity"
+                            defaultValue={1}
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                            placeholder="请输入采购数量" 
+                            required
+                            min="1"
+                          />
+                        </div>
+                      </>
+                    ) : activeTab === 'shortage' && editingItem ? (
+                      // 采购单信息表单
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">书名</label>
+                          <input 
+                            type="text" 
+                            disabled
+                            readOnly
+                            defaultValue={
+                              editingItem && 'bookTitle' in editingItem ? editingItem.bookTitle as string : '未知图书'
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">供应商</label>
+                          <input 
+                            type="text" 
+                            disabled
+                            readOnly
+                            defaultValue={
+                              editingItem && 'supplier' in editingItem ? editingItem.supplier as string : '未设置'
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">供应商邮箱</label>
+                          <input 
+                            type="text" 
+                            disabled
+                            readOnly
+                            defaultValue={
+                              editingItem && 'supplierEmail' in editingItem ? editingItem.supplierEmail as string : '未设置'
+                            } 
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">数量</label>
+                            <input 
+                              type="number" 
+                              name="quantity"
+                              defaultValue={
+                                editingItem && 'quantity' in editingItem ? editingItem.quantity as number : 0
+                              } 
+                              className={`w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 outline-none transition-colors hide-spinners ${
+                                editingItem && 'status' in editingItem && (editingItem.status as string) !== '待处理'
+                                  ? 'text-gray-500 cursor-not-allowed'
+                                  : 'text-white focus:border-[#0071e3]'
+                              }`} 
+                              placeholder="请输入采购数量" 
+                              required
+                              min="1"
+                              disabled={editingItem && 'status' in editingItem && (editingItem.status as string) !== '待处理'}
+                            />
+                            {editingItem && 'status' in editingItem && (editingItem.status as string) !== '待处理' && (
+                              <p className="text-xs text-yellow-500/70 mt-1">⚠️ 仅待处理状态可修改数量</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">状态</label>
+                            <select 
+                              name="status"
+                              defaultValue={
+                                editingItem && 'status' in editingItem ? editingItem.status as string : '待处理'
+                              }
+                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                              style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                                backgroundPosition: 'right 1rem center'
+                              }}
+                            >
+                              <option value="待处理" className="bg-[#1d1d1f] text-white py-2">待处理</option>
+                              <option value="待发货" className="bg-[#1d1d1f] text-white py-2">待发货</option>
+                              <option value="运输中" className="bg-[#1d1d1f] text-white py-2">运输中</option>
+                              <option value="已完成" className="bg-[#1d1d1f] text-white py-2">已完成</option>
+                              <option value="已取消" className="bg-[#1d1d1f] text-white py-2">已取消</option>
+                            </select>
+                          </div>
+                        </div>
+                      </>
                     ) : activeTab === 'users' ? (
                       // 用户信息表单
                       <>
@@ -1687,6 +2208,75 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                           className="flex-1 py-3 rounded-xl bg-[#0071e3] text-white hover:bg-[#0062c3] transition-colors font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
                         >
                             <Save className="w-4 h-4" /> 确认补货
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- Quick Purchase Modal --- */}
+      {isQuickPurchaseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsQuickPurchaseModalOpen(false)}></div>
+            <div className="relative w-full max-w-lg bg-[#1c1c1e] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transform transition-all">
+                <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="text-lg font-bold text-white">快速采购</h3>
+                    <button onClick={() => setIsQuickPurchaseModalOpen(false)} className="text-[#86868b] hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <div className="p-6 space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">采购数量 *</label>
+                        <input 
+                          type="number" 
+                          value={quickPurchaseQuantity}
+                          onChange={(e) => setQuickPurchaseQuantity(parseInt(e.target.value) || 1)}
+                          className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                          placeholder="请输入采购数量" 
+                          min="1"
+                        />
+                    </div>
+                    
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setIsQuickPurchaseModalOpen(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors font-medium">取消</button>
+                        <button 
+                          type="button" 
+                          onClick={async () => {
+                            if (!quickPurchaseBookId || quickPurchaseQuantity <= 0) {
+                              toast.error('请输入有效的采购数量');
+                              return;
+                            }
+                            
+                            try {
+                              const response = await fetch('/api/purchase-orders/create', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  book_id: quickPurchaseBookId,
+                                  quantity: quickPurchaseQuantity
+                                }),
+                              });
+                              
+                              const result = await response.json();
+                              
+                              if (result.success) {
+                                await refreshData();
+                                setIsQuickPurchaseModalOpen(false);
+                                toast.success('采购单已创建成功');
+                              } else {
+                                toast.error(`创建失败: ${result.message}`);
+                              }
+                            } catch (error) {
+                              console.error('创建采购单时出错:', error);
+                              toast.error('创建采购单时发生错误');
+                            }
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-[#0071e3] text-white hover:bg-[#0062c3] transition-colors font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
+                        >
+                            <Save className="w-4 h-4" /> 确认采购
                         </button>
                     </div>
                 </div>

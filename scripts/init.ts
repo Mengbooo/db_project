@@ -176,17 +176,10 @@ db.exec(`
   END
 `);
 
-// 3. 当采购单完成时，自动更新图书库存
-db.exec(`
-  CREATE TRIGGER IF NOT EXISTS update_book_stock_after_purchase
-  AFTER INSERT ON hust_library_purchase
-  FOR EACH ROW
-  BEGIN
-    UPDATE hust_library_book 
-    SET stock = stock + NEW.quantity 
-    WHERE id = NEW.book_id;
-  END
-`);
+// 3. 采购单库存更新应在采购单状态变为'已完成'时触发
+// 此需求由应用层API逻辑处理（/api/purchase-orders/update）
+// 数据库触发器过早，只有状态准许改为"已完成"执行库存整整数
+// 触发器已移步，需要情况下需恢复数据库接底时不会自动增加库存
 
 console.log('Database triggers created successfully');
 

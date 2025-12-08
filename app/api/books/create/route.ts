@@ -10,6 +10,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: '缺少必要参数' }, { status: 400 });
     }
     
+    // 验证库存不能为负数
+    if (stock < 0) {
+      return NextResponse.json(
+        { success: false, message: '库存数量不能低于0' },
+        { status: 400 }
+      );
+    }
+    
     // 获取数据库连接
     const db = getDatabase();
     
