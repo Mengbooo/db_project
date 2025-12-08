@@ -99,7 +99,7 @@ export async function PUT(request: Request) {
         // 获取用户信息用于发送邮件
         const userInfo: any = db.prepare(`
           SELECT u.email, u.username 
-          FROM hust_library_auth u
+          FROM hust_library_user_auth u
           WHERE u.id = ?
         `).get(order.reader_id);
 

@@ -35,6 +35,7 @@ export async function PUT(request: Request) {
     }
 
     const db = getDatabase();
+    let isTransactionActive = false;
     
     try {
       // 首先获取当前订单信息
@@ -50,12 +51,23 @@ export async function PUT(request: Request) {
       
       // 开始事务
       db.prepare('BEGIN').run();
+      isTransactionActive = true;
       
       try {
         // 更新订单状态
         const result = db.prepare(
           'UPDATE hust_library_ticket SET status = ? WHERE id = ?'
         ).run(status, id);
+
+        if (result.changes === 0) {
+          db.prepare('ROLLBACK').run();
+          isTransactionActive = false;
+          db.close();
+          return NextResponse.json(
+            { success: false, message: '订单不存在或未发生更改' },
+            { status: 404 }
+          );
+        }
 
         // 如果订单被取消，且关联了采购单，则级联取消采购单
         if (status === '已取消' && currentOrder.status !== '已取消') {
@@ -93,19 +105,12 @@ export async function PUT(request: Request) {
 
         // 提交事务
         db.prepare('COMMIT').run();
-
-        if (result.changes === 0) {
-          db.close();
-          return NextResponse.json(
-            { success: false, message: '订单不存在或未发生更改' },
-            { status: 404 }
-          );
-        }
+        isTransactionActive = false;
 
         // 获取用户信息用于发送邮件
         const userInfo: any = db.prepare(`
           SELECT u.email, u.username 
-          FROM hust_library_auth u
+          FROM hust_library_user_auth u
           WHERE u.id = ?
         `).get(currentOrder.reader_id);
 
@@ -137,8 +142,11 @@ export async function PUT(request: Request) {
           message: '订单状态更新成功'
         });
       } catch (innerError) {
-        // 回滚事务
-        db.prepare('ROLLBACK').run();
+        // 只有事务活跃时才回滚
+        if (isTransactionActive) {
+          db.prepare('ROLLBACK').run();
+          isTransactionActive = false;
+        }
         throw innerError;
       }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
+import { sendSupplierPurchaseNotificationEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
 
     try {
       // 验证book_id是否存在
-      const book = db.prepare('SELECT * FROM hust_library_book WHERE id = ?').get(book_id);
+      const book: any = db.prepare('SELECT * FROM hust_library_book WHERE id = ?').get(book_id);
       if (!book) {
         db.close();
         return NextResponse.json(
@@ -27,6 +28,9 @@ export async function POST(request: Request) {
         );
       }
 
+      // 前罫取供应商信息
+      const supplier: any = db.prepare('SELECT email, name FROM hust_library_supplier WHERE name = ?').get(book.supplier);
+
       // 创建新采购单
       const result = db.prepare(`
         INSERT INTO hust_library_purchase (book_id, quantity, status)
@@ -34,6 +38,23 @@ export async function POST(request: Request) {
       `).run(book_id, quantity);
 
       db.close();
+      
+      const purchaseId = result.lastInsertRowid as number;
+      const purchaseOrderId = `PUR-${String(purchaseId).padStart(4, '0')}`;
+
+      // 发送供应商邮件（异步，不阻塞响应）
+      if (supplier && supplier.email) {
+        sendSupplierPurchaseNotificationEmail(
+          supplier.email,
+          supplier.name,
+          book.name,
+          quantity,
+          purchaseOrderId
+        ).catch(error => {
+          console.error('发送采购单邮件失败:', error);
+          // 不阻塞响应，只记录错误
+        });
+      }
 
       return NextResponse.json({
         success: true,

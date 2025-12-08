@@ -543,15 +543,41 @@ export async function sendOrderStatusEmail(
 
 /**
  * 发送采购单通知邮件给供应商
+ * @param supplierEmail 供应商邮箱
+ * @param supplierName 供应商名称
+ * @param bookTitle 图书名称
+ * @param quantity 采购/补货数量
+ * @param purchaseOrderId 采购单号
+ * @param type 邮件类型：'purchase'(采购通知)、'restock'(补货通知)、'contact'(联系供应商)
  */
 export async function sendSupplierPurchaseNotificationEmail(
   supplierEmail: string,
   supplierName: string,
   bookTitle: string,
   quantity: number,
-  purchaseOrderId: string
+  purchaseOrderId: string,
+  type: 'purchase' | 'restock' | 'contact' = 'purchase'
 ) {
   const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
+  
+  // 根据类型确定邮件内容
+  let title = '新的采购单通知';
+  let mainMessage = 'ibookstore 系统生成了一份新的采购需求，请查收：';
+  let noteMessage = '请尽快确认库存并安排发货，我们会及时跟进物流状态。';
+  let footerNote = '此邮件仅发送给 ibookstore 认证供应商';
+  
+  if (type === 'restock') {
+    title = '补货通知';
+    mainMessage = '系统检测到以下图书库存不足，请及时补货：';
+    noteMessage = '请尽快登录系统查看详情并安排发货，感谢您的配合。';
+    footerNote = '此邮件由系统自动发送';
+  } else if (type === 'contact') {
+    title = '补货请求';
+    mainMessage = '感谢您的合作，ibookstore 需要您尽快补货以下图书：';
+    noteMessage = '请尽快安排发货，我们会及时跟进。';
+    footerNote = '此邮件由系统自动发送';
+  }
+  
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -560,9 +586,9 @@ export async function sendSupplierPurchaseNotificationEmail(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="color-scheme" content="light dark">
         <meta name="supported-color-schemes" content="light dark">
-        <title>新的采购单通知 - ibookstore</title>
+        <title>${title} - ibookstore</title>
         <style>
-            /* --- 全局与容器样式 (保持一致) --- */
+            /* --- 全局与容器样式 --- */
             body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
             body { 
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
@@ -732,14 +758,14 @@ export async function sendSupplierPurchaseNotificationEmail(
 
             <div class="container">
                 <div class="content">
-                    <h1>新的采购单通知</h1>
+                    <h1>${title}</h1>
                     
                     <p>您好，<strong>${supplierName}</strong></p>
-                    <p>ibookstore 系统生成了一份新的采购需求，请查收：</p>
+                    <p>${mainMessage}</p>
                     
                     <div class="purchase-card">
                         <div class="purchase-row">
-                            <span class="label">采购单号</span>
+                            <span class="label">单号</span>
                             <span class="value highlight-text">${purchaseOrderId}</span>
                         </div>
                         <div class="purchase-row">
@@ -747,13 +773,13 @@ export async function sendSupplierPurchaseNotificationEmail(
                             <span class="value">${bookTitle}</span>
                         </div>
                         <div class="purchase-row">
-                            <span class="label">采购数量</span>
+                            <span class="label">数量</span>
                             <span class="value quantity-text">${quantity} 本</span>
                         </div>
                     </div>
 
                     <div class="note">
-                        <p>请尽快确认库存并安排发货，我们会及时跟进物流状态。</p>
+                        <p>${noteMessage}</p>
                         <p style="margin-bottom: 0;">如有任何疑问，请直接 <a href="mailto:support@ibookstore.com" class="text-link">回复此邮件</a> 与采购部联系。</p>
                     </div>
                 </div>
@@ -776,7 +802,7 @@ export async function sendSupplierPurchaseNotificationEmail(
                     </div>
                     
                     <div class="footer-address">
-                        此邮件仅发送给 ibookstore 认证供应商<br>
+                        ${footerNote}<br>
                         系统自动发送，请勿转发
                     </div>
                 </div>
@@ -785,10 +811,16 @@ export async function sendSupplierPurchaseNotificationEmail(
     </body>
     </html>
   `;
-
+  
+  const subjectMap: Record<string, string> = {
+    'purchase': `新的采购单 - ${purchaseOrderId}`,
+    'restock': `补货通知 - ${purchaseOrderId}`,
+    'contact': `补货请求 - ${purchaseOrderId}`
+  };
+  
   return sendEmail({
     to: supplierEmail,
-    subject: `新的采购单 - ${purchaseOrderId}`,
+    subject: subjectMap[type],
     html,
   });
 }

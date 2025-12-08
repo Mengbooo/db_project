@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
+import { sendSupplierPurchaseNotificationEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -108,6 +109,8 @@ export async function POST(request: Request) {
       }
 
       // 为超出库存的订单创建采购单
+      const suppliersToNotify: { email: string; name: string; bookTitle: string; quantity: number; purchaseOrderId: string }[] = [];
+      
       for (const pending of pendingRestockOrders) {
         // 创建采购单，数量为超出库存的数量
         const purchaseResult = db.prepare(`
@@ -119,6 +122,18 @@ export async function POST(request: Request) {
 
         // 更新订单的purchase_id字段
         db.prepare('UPDATE hust_library_ticket SET purchase_id = ? WHERE id = ?').run(purchaseId, pending.orderId);
+        
+        // 获取供应商信息以便后续发送邮件
+        const supplier: any = db.prepare('SELECT email, name FROM hust_library_supplier WHERE name = (SELECT supplier FROM hust_library_book WHERE id = ?)').get(pending.bookId);
+        if (supplier && supplier.email) {
+          suppliersToNotify.push({
+            email: supplier.email,
+            name: supplier.name,
+            bookTitle: pending.bookName,
+            quantity: pending.shortageQuantity,
+            purchaseOrderId: `PUR-${String(purchaseId).padStart(4, '0')}`
+          });
+        }
       }
 
       // 扣除用户余额
@@ -132,6 +147,20 @@ export async function POST(request: Request) {
       db.prepare('COMMIT').run();
 
       db.close();
+      
+      // 发送供应商采购单邮件（异步，不阻塞响应）
+      for (const supplier of suppliersToNotify) {
+        sendSupplierPurchaseNotificationEmail(
+          supplier.email,
+          supplier.name,
+          supplier.bookTitle,
+          supplier.quantity,
+          supplier.purchaseOrderId
+        ).catch(error => {
+          console.error('发送采购单邮件失败:', error);
+          // 不阻塞响应，只记录错误
+        });
+      }
 
       return NextResponse.json({
         success: true,

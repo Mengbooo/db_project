@@ -837,10 +837,34 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     }
   };
 
-  const handleNotifyRestock = (supplierId: string, supplierName: string, supplierEmail: string) => {
-    // 模拟通知补货
-    setNotificationSupplier(supplierId);
-    toast.success(`已通知${supplierName} (${supplierEmail}) 补货`);
+  const handleNotifyRestock = async (supplierId: string, supplierName: string, supplierEmail: string) => {
+    // 发送补货通知邮件
+    try {
+      const response = await fetch('/api/email/supplier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supplierEmail,
+          supplierName,
+          bookTitle: '待补货图书',
+          quantity: 1,
+          purchaseOrderId: `RESTOCK-${Date.now()}`,
+          type: 'restock' // 补货通知类型
+        }),
+      });
+
+      if (response.ok) {
+        setNotificationSupplier(supplierId);
+        toast.success(`已通知${supplierName} (${supplierEmail}) 补货`);
+      } else {
+        toast.error('发送邮件失败');
+      }
+    } catch (error) {
+      console.error('发送邮件时出错:', error);
+      toast.error('发送邮件时发生错误');
+    }
     
     // 2秒后清除通知状态
     setTimeout(() => {
@@ -868,6 +892,24 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         const result = await response.json();
         
         if (result.success) {
+          // 发送联系供应商邮件
+          await fetch('/api/email/supplier', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              supplierEmail,
+              supplierName,
+              bookTitle: '待补货图书',
+              quantity: 1,
+              purchaseOrderId: `CONTACT-${Date.now()}`,
+              type: 'contact' // 联系供应商类型
+            }),
+          }).catch(error => {
+            console.error('发送邮件失败:', error);
+          });
+          
           await refreshData();
           toast.success(`已联系供应商${supplierName}补货`, {
             description: `邮箱: ${supplierEmail}`,
@@ -881,7 +923,24 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         toast.error('联系供应商时发生错误');
       }
     } else {
-      // 其他状态下，空顯示提示信息
+      // 其他状态下，显示提示信息并发送邮件
+      await fetch('/api/email/supplier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supplierEmail,
+          supplierName,
+          bookTitle: '待补货图书',
+          quantity: 1,
+          purchaseOrderId: `CONTACT-${Date.now()}`,
+          type: 'contact' // 联系供应商类型
+        }),
+      }).catch(error => {
+        console.error('发送邮件失败:', error);
+      });
+      
       toast.success(`已联系供应商${supplierName}补货`, {
         description: `邮箱: ${supplierEmail}`,
         duration: 3000,
