@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createUser, getUserByEmail, getUserByUsername } from '@/lib/db';
+import { sendWelcomeEmail } from '@/lib/email';
 
 // 定义用户类型
 interface User {
@@ -45,6 +46,12 @@ export async function POST(request: Request) {
 
     // 创建用户（默认为普通用户）
     const result = createUser(username, email, password, 'user');
+
+    // 发送欢迎邮件（异步，不阻塞注册流程）
+    sendWelcomeEmail(email, username).catch(error => {
+      console.error('发送欢迎邮件失败:', error);
+      // 不阻塞注册流程，只记录错误
+    });
 
     return NextResponse.json(
       { 

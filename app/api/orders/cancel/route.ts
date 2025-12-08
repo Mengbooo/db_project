@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '../../../../lib/db';
+import { sendOrderStatusEmail } from '@/lib/email';
 
 export async function PUT(request: Request) {
   try {
@@ -94,7 +95,31 @@ export async function PUT(request: Request) {
 
         // 提交事务
         db.prepare('COMMIT').run();
+
+        // 获取用户信息用于发送邮件
+        const userInfo: any = db.prepare(`
+          SELECT u.email, u.username 
+          FROM hust_library_auth u
+          WHERE u.id = ?
+        `).get(order.reader_id);
+
         db.close();
+
+        // 发送订单取消邮件（异步，不阻塞响应）
+        if (userInfo && userInfo.email) {
+          const orderIdFormatted = `ORD-${String(orderId).padStart(4, '0')}`;
+          
+          sendOrderStatusEmail(
+            userInfo.email,
+            userInfo.username,
+            orderIdFormatted,
+            '已取消',
+            `您的订单已成功取消，款项 ￥${order.price.toFixed(2)} 已退回到您的账户`
+          ).catch(error => {
+            console.error('发送订单取消邮件失败:', error);
+            // 不阻塞响应，只记录错误
+          });
+        }
       } catch (innerError) {
         db.prepare('ROLLBACK').run();
         throw innerError;

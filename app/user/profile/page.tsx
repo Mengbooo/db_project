@@ -97,68 +97,75 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
   const [orders, setOrders] = useState<any[]>([]);
   const [isCancellingOrder, setIsCancellingOrder] = useState<number | null>(null);
 
-  // 获取 URL 参数中的 userId 并加载用户数据
+  // 获取 URL 参数中的 userId 并加载用户数据 - 仅在初始化时执行
   useEffect(() => {
-    const fetchUserData = async () => {
+    const initializeParams = async () => {
       try {
-        setLoading(true);
         const params = await searchParams;
         const userIdParam = params.userId || '2';
         const tabParam = params.tab || 'general';
-        setUserId(userIdParam);
-        setActiveTab(tabParam);
         
-        // 从 API 获取用户数据
-        const response = await fetch(`/api/dashboard?userId=${userIdParam}`);
-        if (!response.ok) {
-          throw new Error('获取用户信息失败');
-        }
-        
-        const data = await response.json();
-        if (data.user) {
-          const user = data.user;
-          // 设置用户完整数据
-          setUserData({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            full_name: user.full_name || user.username,
-            phone: user.phone || '',
-            profile_address: user.profile_address || '',
-            balance: user.balance || 0,
-            creditLevel: user.creditLevel || 1,
-            avatar_url: user.avatar_url,
-            level: getCreditLevelName(user.creditLevel || 1),
-            points: 1250, // 这个可以从数据库获取，暂时使用固定值
-            nextLevelProgress: 75 // 这个可以计算，暂时使用固定值
-          });
+        // 如果userId改变，才重新加载数据
+        if (userIdParam !== userId) {
+          setUserId(userIdParam);
+          setLoading(true);
           
-          // 设置表单数据
-          setFormData({
-            full_name: user.full_name || user.username,
-            email: user.email,
-            phone: user.phone || '',
-            address: user.profile_address || '',
-            avatarUrl: user.avatar_url || ''
-          });
+          // 从 API 获取用户数据
+          const response = await fetch(`/api/dashboard?userId=${userIdParam}`);
+          if (!response.ok) {
+            throw new Error('获取用户信息失败');
+          }
           
-          // 获取当前密码（需要从 API 返回）
-          // 注意：实际应用中不应返回密码，这里是学习项目
-          setCurrentPassword(user.password || '');
-        }
-        
-        // 加载订单数据
-        if (data.orders) {
-          setOrders(data.orders);
+          const data = await response.json();
+          if (data.user) {
+            const user = data.user;
+            // 设置用户完整数据
+            setUserData({
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              full_name: user.full_name || user.username,
+              phone: user.phone || '',
+              profile_address: user.profile_address || '',
+              balance: user.balance || 0,
+              creditLevel: user.creditLevel || 1,
+              avatar_url: user.avatar_url,
+              level: getCreditLevelName(user.creditLevel || 1),
+              points: 1250,
+              nextLevelProgress: 75
+            });
+            
+            // 设置表单数据
+            setFormData({
+              full_name: user.full_name || user.username,
+              email: user.email,
+              phone: user.phone || '',
+              address: user.profile_address || '',
+              avatarUrl: user.avatar_url || ''
+            });
+            
+            // 获取当前密码
+            setCurrentPassword(user.password || '');
+          }
+          
+          // 加载订单数据
+          if (data.orders) {
+            setOrders(data.orders);
+          }
+          
+          setLoading(false);
+        } else {
+          // 如果userId相同，仅更新tab（不加载数据）
+          setActiveTab(tabParam);
         }
       } catch (error) {
         console.error('获取用户数据失败:', error);
         toast.error('获取用户数据失败');
-      } finally {
         setLoading(false);
       }
     };
-    fetchUserData();
+    
+    initializeParams();
   }, [searchParams]);
 
   const handleSave = async () => {

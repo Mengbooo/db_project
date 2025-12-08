@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
+import { sendOrderStatusEmail } from '@/lib/email';
 
 export async function PUT(request: Request) {
   try {
@@ -10,6 +11,15 @@ export async function PUT(request: Request) {
     if (!orderId || !status) {
       return NextResponse.json(
         { error: '缺少必填字段' },
+        { status: 400 }
+      );
+    }
+
+    // 验证订单状态 - admin只能修改为待出库/运输中/已送达
+    const allowedAdminStatuses = ['待出库', '运输中', '已送达'];
+    if (!allowedAdminStatuses.includes(status)) {
+      return NextResponse.json(
+        { success: false, message: `无效的订单状态。允许的状态为: ${allowedAdminStatuses.join('、')}` },
         { status: 400 }
       );
     }
@@ -83,13 +93,43 @@ export async function PUT(request: Request) {
 
         // 提交事务
         db.prepare('COMMIT').run();
-        db.close();
 
         if (result.changes === 0) {
+          db.close();
           return NextResponse.json(
             { success: false, message: '订单不存在或未发生更改' },
             { status: 404 }
           );
+        }
+
+        // 获取用户信息用于发送邮件
+        const userInfo: any = db.prepare(`
+          SELECT u.email, u.username 
+          FROM hust_library_auth u
+          WHERE u.id = ?
+        `).get(currentOrder.reader_id);
+
+        db.close();
+
+        // 发送订单状态更新邮件（异步，不阻塞响应）
+        if (userInfo && userInfo.email && status !== currentOrder.status) {
+          const statusMessages: Record<string, string> = {
+            '待出库': '您的订单已确认，正在准备出库',
+            '运输中': '您的订单已发出，预计3天内送达',
+            '已送达': '您的订单已送达，感谢您的购买！',
+            '已取消': '您的订单已取消，款项已退回',
+          };
+
+          sendOrderStatusEmail(
+            userInfo.email,
+            userInfo.username,
+            orderId,
+            status,
+            statusMessages[status] || '订单状态已更新'
+          ).catch(error => {
+            console.error('发送订单状态邮件失败:', error);
+            // 不阻塞响应，只记录错误
+          });
         }
 
         return NextResponse.json({

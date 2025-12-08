@@ -1785,10 +1785,8 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             }}
                           >
                             <option value="待出库" className="bg-[#1d1d1f] text-white py-2">⏳ 待出库</option>
-                            <option value="待补货" className="bg-[#1d1d1f] text-white py-2">📦 待补货</option>
                             <option value="运输中" className="bg-[#1d1d1f] text-white py-2">🚚 运输中</option>
                             <option value="已送达" className="bg-[#1d1d1f] text-white py-2">✅ 已送达</option>
-                            <option value="已取消" className="bg-[#1d1d1f] text-white py-2">❌ 已取消</option>
                           </select>
                         </div>
                       </>
