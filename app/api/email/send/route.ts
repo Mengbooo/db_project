@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   sendWelcomeEmail,
-  sendOrderConfirmationEmail,
   sendOrderStatusEmail,
-  sendOrderCancellationEmail,
   sendSupplierPurchaseNotificationEmail,
 } from '@/lib/email';
 
@@ -35,19 +33,6 @@ export async function POST(request: Request) {
           message: '欢迎邮件已发送',
         });
 
-      case 'order_confirmation':
-        if (!orderId || !items || !total || !address) {
-          return NextResponse.json(
-            { error: '订单确认邮件需要 orderId, items, total, address 字段' },
-            { status: 400 }
-          );
-        }
-        await sendOrderConfirmationEmail(email, username || '用户', orderId, items, total, address);
-        return NextResponse.json({
-          success: true,
-          message: '订单确认邮件已发送',
-        });
-
       case 'order_status':
         if (!orderId || !status) {
           return NextResponse.json(
@@ -59,19 +44,6 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           message: '订单状态邮件已发送',
-        });
-
-      case 'order_cancellation':
-        if (!orderId || refundAmount === undefined) {
-          return NextResponse.json(
-            { error: '取消订单邮件需要 orderId 和 refundAmount 字段' },
-            { status: 400 }
-          );
-        }
-        await sendOrderCancellationEmail(email, username || '用户', orderId, refundAmount);
-        return NextResponse.json({
-          success: true,
-          message: '取消订单邮件已发送',
         });
 
       case 'supplier_notification':

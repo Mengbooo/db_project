@@ -50,7 +50,7 @@ export async function sendEmail({
  */
 export async function sendWelcomeEmail(email: string, username: string) {
   const subject = '欢迎加入 ibookstore';
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo-2.png`;
+  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -317,7 +317,7 @@ export async function sendOrderStatusEmail(
     '派送中': '🚚',
   };
 
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo-2.png`;
+  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -544,7 +544,7 @@ export async function sendSupplierPurchaseNotificationEmail(
   quantity: number,
   purchaseOrderId: string
 ) {
-  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo-2.png`;
+  const logoUrl = `${process.env.NEXT_PUBLIC_APP_URL}/logo.svg`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
