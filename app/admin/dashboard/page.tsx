@@ -146,7 +146,7 @@ const getCreditLevelStyle = (level: number) => {
 // 修改AdminDashboard组件以接收props
 export default function AdminDashboard({ searchParams }: { searchParams: Promise<{ adminId?: string; tab?: string }> }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers'>('books');
+  const [activeTab, setActiveTab] = useState<'books' | 'orders' | 'users' | 'suppliers' | 'shortage'>('books');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Data State
@@ -226,7 +226,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   }, []);
 
   // 切换 tab 并更新 URL
-  const handleTabChange = async (tab: 'books' | 'orders' | 'users' | 'suppliers') => {
+  const handleTabChange = async (tab: 'books' | 'orders' | 'users' | 'suppliers' | 'shortage') => {
     setActiveTab(tab);
     
     // 获取当前的 adminId
@@ -750,6 +750,14 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
     );
   };
   
+  // 缺书和采购标签页的过滤函数 - 过滤掉In Stock状态的图书
+  const getFilteredShortageBooks = () => {
+    return books.filter(book => 
+      book.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      book.status !== 'In Stock'
+    );
+  };
+  
   const getFilteredOrders = () => {
     return orders.filter(order => 
       order.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -878,6 +886,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                       <NavItem icon={<ShoppingBag />} label="订单管理" active={activeTab === 'orders'} onClick={() => handleTabChange('orders')} />
                       <NavItem icon={<Users />} label="用户管理" active={activeTab === 'users'} onClick={() => handleTabChange('users')} />
                       <NavItem icon={<Truck />} label="供应商" active={activeTab === 'suppliers'} onClick={() => handleTabChange('suppliers')} />
+                      <NavItem icon={<AlertCircle />} label="缺书和采购" active={activeTab === 'shortage'} onClick={() => handleTabChange('shortage')} />
                   </nav>
               </div>
 
@@ -898,6 +907,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                           {activeTab === 'orders' && <><ShoppingBag className="w-6 h-6 text-[#0071e3]" /> 订单中心</>}
                           {activeTab === 'users' && <><Users className="w-6 h-6 text-[#0071e3]" /> 用户列表</>}
                           {activeTab === 'suppliers' && <><Truck className="w-6 h-6 text-[#0071e3]" /> 供应商网络</>}
+                          {activeTab === 'shortage' && <><AlertCircle className="w-6 h-6 text-[#0071e3]" /> 缺书和采购</>}
                       </h1>
                       <p className="text-xs text-[#86868b] mt-1 ml-8">
                           {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -981,12 +991,55 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">电话</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">网站</th>
                                   </>}
+                                  {activeTab === 'shortage' && <>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider pl-8">ID / 书名</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">作者</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">分类</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">库存</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">价格</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版社</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">出版日期</th>
+                                  </>}
                                   <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
                               {/* --- Books Row --- */}
                               {activeTab === 'books' && getFilteredBooks().map(book => (
+                                  <TableRow key={book.id}>
+                                      <td className="p-5 pl-8 max-w-[200px]">
+                                          <div className="flex items-center gap-3">
+                                              <div className="w-10 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded border border-white/10 flex items-center justify-center text-[8px] text-white/30 font-bold shadow-sm hidden">
+                                                  BOOK
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                  <div className="font-medium text-white truncate" title={book.title}>{book.title}</div>
+                                                  <div className="text-xs text-[#86868b] font-mono whitespace-nowrap truncate" title={`#${book.id}`}>#{book.id}</div>
+                                              </div>
+                                          </div>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[120px] truncate" title={book.author}>{book.author}</td>
+                                      <td className="p-5">
+                                          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 whitespace-nowrap">
+                                              {book.category.split(',')[0] || book.category.split(' ')[0] || book.category}
+                                          </span>
+                                      </td>
+                                      <td className="p-5 text-sm text-gray-300">{book.stock}</td>
+                                      <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{book.price.toFixed(2)}</td>
+                                      <td className="p-5 whitespace-nowrap"><StatusBadge status={book.status} /></td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.publisher}>{book.publisher}</td>
+                                      <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.supplier}>{book.supplier}</td>
+                                      <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
+                                      <td className="p-5 text-center">
+                                          <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => handleDelete(book.id, 'books')} />
+                                      </td>
+                                  </TableRow>
+                              ))}
+
+                              {/* --- Shortage Row (Same as Books) --- */}
+                              {activeTab === 'shortage' && getFilteredShortageBooks().map(book => (
                                   <TableRow key={book.id}>
                                       <td className="p-5 pl-8 max-w-[200px]">
                                           <div className="flex items-center gap-3">

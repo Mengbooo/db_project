@@ -136,6 +136,15 @@ const formatPublishDate = (dateNumber?: number) => {
   return `${year}-${month}-${day}`;
 };
 
+// 格式化分类标签
+const formatCategoryTags = (category?: string) => {
+  if (!category) return ['未分类'];
+  
+  // 分割所有关键词并去除空格
+  const categories = category.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+  return categories.length > 0 ? categories : ['未分类'];
+};
+
 // 修改函数签名以接收搜索参数
 export default function Dashboard({ searchParams }: { searchParams: Promise<{ userId?: string }> }) {
   const router = useRouter();
@@ -715,7 +724,11 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                               {/* Info */}
                               <div className="flex flex-col flex-1">
                                   <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-[10px] text-[#0071e3] bg-[#0071e3]/10 px-1.5 py-0.5 rounded border border-[#0071e3]/20 font-bold">{book.tag}</span>
+                                      {formatCategoryTags(book.tag).map((tag, index) => (
+                                        <span key={index} className="text-[10px] text-[#0071e3] bg-[#0071e3]/10 px-1.5 py-0.5 rounded border border-[#0071e3]/20 font-bold">
+                                          {tag}
+                                        </span>
+                                      ))}
                                   </div>
                                   <h3 className="text-white font-bold text-base truncate mb-1 group-hover:text-[#5ac8fa] transition-colors">{book.title}</h3>
                                   <p className="text-[#86868b] text-xs mb-1">{book.author}</p>

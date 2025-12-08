@@ -284,15 +284,8 @@ export const getAllBooks = () => {
       b.publish,
       b.stock,
       b.time as publish_time,
-      GROUP_CONCAT(w.writer, ', ') as author,
-      CASE 
-        WHEN b.keyword LIKE '%技术%' OR b.keyword LIKE '%计算机%' THEN '技术'
-        WHEN b.keyword LIKE '%生活%' OR b.keyword LIKE '%生活方式%' THEN '生活方式'
-        WHEN b.keyword LIKE '%设计%' THEN '设计'
-        WHEN b.keyword LIKE '%传记%' THEN '传记'
-        WHEN b.keyword LIKE '%科幻%' THEN '科幻'
-        ELSE '其他'
-      END as tag
+      b.keyword as tag,
+      GROUP_CONCAT(w.writer, ', ') as author
     FROM hust_library_book b
     LEFT JOIN hust_library_write w ON b.id = w.book_id
     GROUP BY b.id
