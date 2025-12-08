@@ -66,7 +66,7 @@ const getCreditLevelName = (level: number) => {
   }
 };
 
-export default function ProfilePage({ searchParams }: { searchParams: Promise<{ userId?: string }> }) {
+export default function ProfilePage({ searchParams }: { searchParams: Promise<{ userId?: string; tab?: string }> }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('general'); // general, security, billing, notifications
   const [isLoading, setIsLoading] = useState(false);
@@ -104,7 +104,9 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
         setLoading(true);
         const params = await searchParams;
         const userIdParam = params.userId || '2';
+        const tabParam = params.tab || 'general';
         setUserId(userIdParam);
+        setActiveTab(tabParam);
         
         // 从 API 获取用户数据
         const response = await fetch(`/api/dashboard?userId=${userIdParam}`);
@@ -323,9 +325,9 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
 
   // 取消订单
   const handleCancelOrder = async (orderId: number, orderStatus: string) => {
-    // 检查订单状态，派送中和已完成不能取消，只有待出库可以取消
-    if (orderStatus === '派送中' || orderStatus === '已完成') {
-      toast.error(`订单状态为“${orderStatus}”，无法取消`);
+    // 检查订单状态，仅在"待补货"和"待出库"状态下可以取消
+    if (orderStatus !== '待补货' && orderStatus !== '待出库') {
+      toast.error(`订单状态为"${orderStatus}"，无法取消`);
       return;
     }
 
@@ -344,13 +346,9 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
       const result = await response.json();
 
       if (response.ok && result.success) {
-        toast.success('订单已取消');
-        // 更新本地订单状态
-        setOrders(prevOrders => 
-          prevOrders.map(order => 
-            order.id === orderId ? { ...order, status: '已取消' } : order
-          )
-        );
+        toast.success('订单已取消，已为您退款');
+        // 刷新订单和余额数据，保持当前tab不变
+        await refreshOrdersData();
       } else {
         throw new Error(result.error || '取消订单失败');
       }
@@ -370,6 +368,34 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
     localStorage.removeItem('userRole');
     // 跳转到登录页面
     router.push('/auth');
+  };
+
+  // 处理tab切换，同时更新URL参数
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    router.push(`?userId=${userId}&tab=${newTab}`);
+  };
+
+  // 转换订单数据并保持tab不变
+  const refreshOrdersData = async () => {
+    try {
+      const response = await fetch(`/api/dashboard?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.orders) {
+          setOrders(data.orders);
+        }
+        if (data.user) {
+          const user = data.user;
+          setUserData(prev => prev ? {
+            ...prev,
+            balance: user.balance || 0
+          } : null);
+        }
+      }
+    } catch (error) {
+      console.error('刷新订单数据失败:', error);
+    }
   };
 
   // 生成16位会员编号（基于 userId）
@@ -483,25 +509,25 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
                     icon={<User />} 
                     label="基本信息" 
                     active={activeTab === 'general'} 
-                    onClick={() => setActiveTab('general')} 
+                    onClick={() => handleTabChange('general')} 
                   />
                   <TabItem 
                     icon={<Shield />} 
                     label="账户安全" 
                     active={activeTab === 'security'} 
-                    onClick={() => setActiveTab('security')} 
+                    onClick={() => handleTabChange('security')} 
                   />
                   <TabItem 
                     icon={<CreditCard />} 
                     label="支付和订单" 
                     active={activeTab === 'billing'} 
-                    onClick={() => setActiveTab('billing')} 
+                    onClick={() => handleTabChange('billing')} 
                   />
                   <TabItem 
                     icon={<Bell />} 
                     label="通知偏好" 
                     active={activeTab === 'notifications'} 
-                    onClick={() => setActiveTab('notifications')} 
+                    onClick={() => handleTabChange('notifications')} 
                   />
               </nav>
               
@@ -775,8 +801,8 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
                                                           <OrderStatusBadge status={order.status || '未知'} />
                                                       </td>
                                                       <td className="p-4 text-right pr-6">
-                                                          {/* 取消按钮：只在待出库时显示，派送中和已完成不能取消 */}
-                                                          {order.status === '待出库' ? (
+                                                          {/* 取消按顲：仅在"待补货"和"待出库"时显示 */}
+                                                          {(order.status === '待出库' || order.status === '待补货') ? (
                                                               <button 
                                                                   onClick={() => handleCancelOrder(order.id, order.status)}
                                                                   disabled={isCancellingOrder === order.id}
@@ -1011,6 +1037,10 @@ function OrderStatusBadge({ status }: { status: string }) {
         case "待出库":
             colorClass = "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
             icon = <Package className="w-3 h-3 mr-1" />;
+            break;
+        case "待补货":
+            colorClass = "text-orange-500 bg-orange-500/10 border-orange-500/20";
+            icon = <Clock className="w-3 h-3 mr-1" />;
             break;
         case "已取消":
             colorClass = "text-red-500 bg-red-500/10 border-red-500/20";

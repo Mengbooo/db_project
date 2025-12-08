@@ -77,8 +77,10 @@ db.exec(`
     description TEXT,
     address VARCHAR(200),
     status VARCHAR(50),
+    purchase_id INTEGER,
     FOREIGN KEY (reader_id) REFERENCES hust_library_reader (id),
-    FOREIGN KEY (book_id) REFERENCES hust_library_book (id)
+    FOREIGN KEY (book_id) REFERENCES hust_library_book (id),
+    FOREIGN KEY (purchase_id) REFERENCES hust_library_purchase (id)
   )
 `);
 
@@ -113,7 +115,9 @@ db.exec(`
     book_id INTEGER,
     quantity INTEGER,
     status VARCHAR(50) DEFAULT '待处理',
-    FOREIGN KEY (book_id) REFERENCES hust_library_book (id)
+    ticket_id INTEGER,
+    FOREIGN KEY (book_id) REFERENCES hust_library_book (id),
+    FOREIGN KEY (ticket_id) REFERENCES hust_library_ticket (id)
   )
 `);
 

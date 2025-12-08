@@ -206,10 +206,10 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         // 获取admin ID和tab参数
         const params = await searchParams;
         const adminId = params.adminId || '1'; // 默认ID为1
-        const tabParam = params.tab as 'books' | 'orders' | 'users' | 'suppliers' | undefined;
+        const tabParam = params.tab as 'books' | 'orders' | 'users' | 'suppliers' | 'shortage' | undefined;
         
         // 如果URL中有tab参数，设置为当前tab
-        if (tabParam && ['books', 'orders', 'users', 'suppliers'].includes(tabParam)) {
+        if (tabParam && ['books', 'orders', 'users', 'suppliers', 'shortage'].includes(tabParam)) {
           setActiveTab(tabParam);
         }
         
@@ -1785,6 +1785,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             }}
                           >
                             <option value="待出库" className="bg-[#1d1d1f] text-white py-2">⏳ 待出库</option>
+                            <option value="待补货" className="bg-[#1d1d1f] text-white py-2">📦 待补货</option>
                             <option value="运输中" className="bg-[#1d1d1f] text-white py-2">🚚 运输中</option>
                             <option value="已送达" className="bg-[#1d1d1f] text-white py-2">✅ 已送达</option>
                             <option value="已取消" className="bg-[#1d1d1f] text-white py-2">❌ 已取消</option>
@@ -2346,9 +2347,11 @@ function TableRow({ children }: { children: React.ReactNode }) {
 function StatusBadge({ status }: { status: string }) {
     let colorClass = "";
     switch (status) {
-      case 'In Stock': case 'Completed': case 'Active': colorClass = 'bg-green-500/10 text-green-400 border-green-500/20'; break;
-      case 'Low Stock': case 'Processing': case 'Pending': colorClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'; break;
-      case 'Out of Stock': case 'Cancelled': case 'Inactive': colorClass = 'bg-red-500/10 text-red-400 border-red-500/20'; break;
+      case 'In Stock': case 'Completed': case 'Active': case '已送达': case '已完成': colorClass = 'bg-green-500/10 text-green-400 border-green-500/20'; break;
+      case 'Low Stock': case 'Processing': case 'Pending': case '待出库': colorClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'; break;
+      case 'Out of Stock': case 'Cancelled': case 'Inactive': case '已取消': colorClass = 'bg-red-500/10 text-red-400 border-red-500/20'; break;
+      case '待补货': colorClass = 'bg-orange-500/10 text-orange-400 border-orange-500/20'; break;
+      case '运输中': case '派送中': colorClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20'; break;
       default: colorClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     }
     

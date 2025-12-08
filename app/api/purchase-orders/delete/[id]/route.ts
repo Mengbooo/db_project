@@ -18,9 +18,21 @@ export async function DELETE(
     const db = getDatabase();
 
     try {
-      // 删除采购单
+      // 开始事务
+      db.prepare('BEGIN').run();
+
+      // 首先需要删除或清除所有关联的订单的purchase_id
+      db.prepare(`
+        UPDATE hust_library_ticket 
+        SET purchase_id = NULL 
+        WHERE purchase_id = ?
+      `).run(id);
+
+      // 然后删除采购单
       const result = db.prepare('DELETE FROM hust_library_purchase WHERE id = ?').run(id);
 
+      // 提交事务
+      db.prepare('COMMIT').run();
       db.close();
 
       if (result.changes === 0) {
@@ -35,6 +47,8 @@ export async function DELETE(
         message: '采购单已删除'
       });
     } catch (dbError) {
+      // 回滚事务
+      db.prepare('ROLLBACK').run();
       db.close();
       throw dbError;
     }

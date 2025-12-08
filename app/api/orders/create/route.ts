@@ -55,25 +55,29 @@ export async function POST(request: Request) {
       // 为每个购物车项目创建订单
       const currentTime = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
       const orderIds: number[] = [];
+      const pendingRestockOrders: { orderId: number; bookId: number; shortageQuantity: number; bookName: string }[] = [];
 
       for (const item of items) {
         const { bookId, quantity, price } = item;
 
-        // 验证库存
+        // 获取图书信息
         const book = db.prepare('SELECT stock, name FROM hust_library_book WHERE id = ?').get(bookId) as any;
         
         if (!book) {
           throw new Error(`图书ID ${bookId} 不存在`);
         }
 
-        if (book.stock < quantity) {
-          throw new Error(`图书《${book.name}》库存不足，当前库存：${book.stock}，需求：${quantity}`);
-        }
+        // 判断是否超出库存
+        const isOverStock = book.stock < quantity;
+        const shortageQuantity = isOverStock ? quantity - book.stock : 0;
+        
+        // 订单状态：如果超出库存则为"待补货"，否则为"待出库"
+        const orderStatus = isOverStock ? '待补货' : '待出库';
 
         // 创建订单记录
         const orderResult = db.prepare(`
-          INSERT INTO hust_library_ticket (book_id, price, time, quantity, reader_id, description, address, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO hust_library_ticket (book_id, price, time, quantity, reader_id, description, address, status, purchase_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
         `).run(
           bookId, // 图书ID
           price * quantity, // 总价
@@ -82,13 +86,39 @@ export async function POST(request: Request) {
           userId,
           `购买《${book.name}》`,
           orderAddress,
-          '待出库' // 初始状态
+          orderStatus
         );
 
-        orderIds.push(orderResult.lastInsertRowid as number);
+        const orderId = orderResult.lastInsertRowid as number;
+        orderIds.push(orderId);
 
-        // 减少库存
-        db.prepare('UPDATE hust_library_book SET stock = stock - ? WHERE id = ?').run(quantity, bookId);
+        if (isOverStock) {
+          // 超出库存，记录待创建的采购单信息
+          pendingRestockOrders.push({
+            orderId,
+            bookId,
+            shortageQuantity,
+            bookName: book.name
+          });
+          // 待补货订单不减少库存
+        } else {
+          // 正常订单，减少库存
+          db.prepare('UPDATE hust_library_book SET stock = stock - ? WHERE id = ?').run(quantity, bookId);
+        }
+      }
+
+      // 为超出库存的订单创建采购单
+      for (const pending of pendingRestockOrders) {
+        // 创建采购单，数量为超出库存的数量
+        const purchaseResult = db.prepare(`
+          INSERT INTO hust_library_purchase (book_id, quantity, status, ticket_id)
+          VALUES (?, ?, '待处理', ?)
+        `).run(pending.bookId, pending.shortageQuantity, pending.orderId);
+
+        const purchaseId = purchaseResult.lastInsertRowid as number;
+
+        // 更新订单的purchase_id字段
+        db.prepare('UPDATE hust_library_ticket SET purchase_id = ? WHERE id = ?').run(purchaseId, pending.orderId);
       }
 
       // 扣除用户余额
@@ -105,11 +135,14 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: '订单创建成功',
+        message: pendingRestockOrders.length > 0 
+          ? `订单创建成功，其中${pendingRestockOrders.length}个订单需要补货`
+          : '订单创建成功',
         orderIds,
         remainingBalance: user.balance - totalAmount,
         discountApplied: actualDiscountRate,
-        originalAmount: originalAmount || totalAmount / (1 - actualDiscountRate)
+        originalAmount: originalAmount || totalAmount / (1 - actualDiscountRate),
+        pendingRestockCount: pendingRestockOrders.length
       });
 
     } catch (error) {

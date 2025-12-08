@@ -21,7 +21,7 @@ export async function DELETE(
     try {
       // 首先检查订单状态
       const order = db.prepare(
-        'SELECT status FROM hust_library_ticket WHERE id = ?'
+        'SELECT * FROM hust_library_ticket WHERE id = ?'
       ).get(id) as any;
 
       if (!order) {
@@ -41,24 +41,59 @@ export async function DELETE(
         );
       }
 
-      // 删除订单
-      const result = db.prepare(
-        'DELETE FROM hust_library_ticket WHERE id = ?'
-      ).run(id);
+      // 检查订单是否关联已完成的采购单
+      if (order.purchase_id) {
+        const linkedPurchase = db.prepare(
+          'SELECT status FROM hust_library_purchase WHERE id = ?'
+        ).get(order.purchase_id) as any;
 
-      db.close();
-
-      if (result.changes === 0) {
-        return NextResponse.json(
-          { success: false, message: '订单不存在或已被删除' },
-          { status: 404 }
-        );
+        if (linkedPurchase && linkedPurchase.status === '已完成') {
+          db.close();
+          return NextResponse.json(
+            { success: false, message: '该订单关联已完成的采购单，无法删除。请先删除对应的采购单。' },
+            { status: 403 }
+          );
+        }
       }
 
-      return NextResponse.json({
-        success: true,
-        message: '订单删除成功'
-      });
+      // 开始事务
+      db.prepare('BEGIN').run();
+
+      try {
+        // 如果订单关联了采购单，需要清除采购单的ticket_id关联
+        if (order.purchase_id) {
+          db.prepare(`
+            UPDATE hust_library_purchase 
+            SET ticket_id = NULL 
+            WHERE id = ?
+          `).run(order.purchase_id);
+        }
+
+        // 删除订单
+        const result = db.prepare(
+          'DELETE FROM hust_library_ticket WHERE id = ?'
+        ).run(id);
+
+        // 提交事务
+        db.prepare('COMMIT').run();
+        db.close();
+
+        if (result.changes === 0) {
+          return NextResponse.json(
+            { success: false, message: '订单不存在或已被删除' },
+            { status: 404 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: '订单删除成功'
+        });
+      } catch (innerError) {
+        // 回滚事务
+        db.prepare('ROLLBACK').run();
+        throw innerError;
+      }
 
     } catch (error) {
       db.close();

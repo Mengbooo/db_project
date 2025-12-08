@@ -16,12 +16,12 @@ export async function PUT(request: Request) {
     const db = getDatabase();
     
     try {
-      // 先查询订单当前状态
+      // 先查询订单当前完整信息
       const order = db.prepare(`
-        SELECT id, status 
+        SELECT * 
         FROM hust_library_ticket 
         WHERE id = ?
-      `).get(orderId);
+      `).get(orderId) as any;
 
       if (!order) {
         db.close();
@@ -32,8 +32,8 @@ export async function PUT(request: Request) {
       }
 
       // 检查订单状态是否允许取消
-      // 只有“待出库”状态可以取消，“派送中”和“已完成”不能取消
-      const orderStatus = (order as any).status;
+      // 只有"待补货"和"待出库"状态可以取消，"派送中"和"已完成"不能取消
+      const orderStatus = order.status;
       
       if (orderStatus === '派送中' || orderStatus === '已完成') {
         db.close();
@@ -51,18 +51,58 @@ export async function PUT(request: Request) {
         );
       }
 
-      // 更新订单状态为"已取消"
-      db.prepare(`
-        UPDATE hust_library_ticket 
-        SET status = '已取消' 
-        WHERE id = ?
-      `).run(orderId);
+      // 开始事务
+      db.prepare('BEGIN').run();
 
-      db.close();
+      try {
+        // 更新订单状态为"已取消"
+        db.prepare(`
+          UPDATE hust_library_ticket 
+          SET status = '已取消' 
+          WHERE id = ?
+        `).run(orderId);
+
+        // 如果订单关联了采购单，则取消采购单
+        if (order.purchase_id) {
+          const linkedPurchase: any = db.prepare('SELECT * FROM hust_library_purchase WHERE id = ?').get(order.purchase_id);
+          
+          if (linkedPurchase && linkedPurchase.status === '待处理') {
+            // 取消采购单
+            db.prepare('UPDATE hust_library_purchase SET status = ? WHERE id = ?').run('已取消', order.purchase_id);
+          }
+        }
+
+        // 根据订单状态进行相应的退款和库存恢复
+        if (orderStatus === '待补货') {
+          // 待补货订单：只需退款，库存本来就没减
+          db.prepare(`
+            UPDATE hust_library_user_profile 
+            SET balance = balance + ?
+            WHERE auth_id = ?
+          `).run(order.price, order.reader_id);
+        } else if (orderStatus === '待出库') {
+          // 待出库订单：需要恢复库存并退款
+          // 恢复库存
+          db.prepare('UPDATE hust_library_book SET stock = stock + ? WHERE id = ?').run(order.quantity, order.book_id);
+          // 退款
+          db.prepare(`
+            UPDATE hust_library_user_profile 
+            SET balance = balance + ?
+            WHERE auth_id = ?
+          `).run(order.price, order.reader_id);
+        }
+
+        // 提交事务
+        db.prepare('COMMIT').run();
+        db.close();
+      } catch (innerError) {
+        db.prepare('ROLLBACK').run();
+        throw innerError;
+      }
       
       return NextResponse.json({ 
         success: true, 
-        message: '订单已取消' 
+        message: '订单已取消，已为您退款' 
       });
     } catch (error) {
       db.close();
