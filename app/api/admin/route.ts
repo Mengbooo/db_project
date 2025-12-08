@@ -85,7 +85,17 @@ export async function GET(request: Request) {
           publisher: book.publish,
           supplier: book.supplier,
           seriesNo: book.seriesNo || 0,
-          publishDate: new Date(book.time * 1000).toISOString().split('T')[0], // 将时间戳转换为日期
+          publishDate: book.time ? (() => {
+            // 将YYYYMMDD格式的数字转换为日期字符串
+            const dateStr = book.time.toString();
+            if (dateStr.length === 8) {
+              const year = dateStr.substring(0, 4);
+              const month = dateStr.substring(4, 6);
+              const day = dateStr.substring(6, 8);
+              return `${year}-${month}-${day}`;
+            }
+            return '未知日期';
+          })() : '未知日期', // 将YYYYMMDD格式转换为YYYY-MM-DD格式
         };
       }),
       orders: tickets.map((ticket: any) => {

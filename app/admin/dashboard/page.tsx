@@ -170,6 +170,17 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   // Supplier Notification State
   const [notificationSupplier, setNotificationSupplier] = useState<string | null>(null);
 
+  // 退出登录函数
+  const handleLogout = () => {
+    toast.success('退出登录成功');
+    // 清除本地存储的用户信息
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('adminId');
+    // 跳转到登录页面
+    router.push('/auth');
+  };
+
   // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
@@ -830,7 +841,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
       </div>
 
       {/* --- Main Glass Container (Resized to match User Dashboard) --- */}
-      <div className="relative z-10 w-full max-w-[1400px] h-[90vh] md:h-[85vh] bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex ring-1 ring-white/10">
+      <div className="relative z-10 w-full max-w-[1600px] h-[90vh] md:h-[85vh] bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex ring-1 ring-white/10">
           
           {/* === Sidebar Navigation === */}
           <aside className="w-20 lg:w-72 bg-black/20 border-r border-white/[0.05] flex flex-col justify-between py-8 z-20 backdrop-blur-md">
@@ -871,7 +882,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
               </div>
 
               <div className="px-4">
-                  <NavItem icon={<LogOut />} label="退出登录" onClick={() => {}} active={false} />
+                  <NavItem icon={<LogOut />} label="退出登录" onClick={handleLogout} active={false} />
 
               </div>
           </aside>

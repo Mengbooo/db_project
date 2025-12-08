@@ -11,7 +11,7 @@ import {
   Clock,
   CheckCircle2,
   Truck,
-  Edit2, 
+  Settings, 
   AlertCircle,
   PackageCheck,
   ShoppingCart
@@ -38,6 +38,7 @@ type Book = {
   price: number;
   tag: string;
   stock: number;
+  publish_time?: number; // 出版日期
 };
 
 type Order = {
@@ -118,6 +119,21 @@ const getStatusStyle = (status: string) => {
     case '待出库': return "text-gray-400 border-gray-400/20 bg-gray-400/10";
     default: return "text-gray-400 border-gray-400/20 bg-gray-400/10";
   }
+};
+
+// 格式化出版日期
+const formatPublishDate = (dateNumber?: number) => {
+  if (!dateNumber) return '未知日期';
+  
+  // 将YYYYMMDD格式的数字转换为日期字符串
+  const dateStr = dateNumber.toString();
+  if (dateStr.length !== 8) return '未知日期';
+  
+  const year = dateStr.substring(0, 4);
+  const month = dateStr.substring(4, 6);
+  const day = dateStr.substring(6, 8);
+  
+  return `${year}-${month}-${day}`;
 };
 
 // 修改函数签名以接收搜索参数
@@ -404,7 +420,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
       </div>
 
       {/* --- Main Glass Container (The "Island") --- */}
-      <div className="relative z-10 w-full max-w-[1400px] h-[90vh] md:h-[85vh] bg-[#1c1c1e]/40 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-fade-in-up">
+      <div className="relative z-10 w-full max-w-[1600px] h-[90vh] md:h-[85vh] bg-[#1c1c1e]/40 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-fade-in-up">
           
           {/* === Left Sidebar (Info & History) === */}
           <aside className="w-full md:w-[320px] lg:w-[350px] bg-white/[0.02] border-r border-white/[0.05] flex flex-col p-6 gap-6 overflow-y-auto custom-scrollbar">
@@ -414,10 +430,10 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                   {/* Edit Button */}
                   <button 
                     onClick={() => router.push(`/user/profile?userId=${userId}`)}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-[#86868b] hover:bg-white/10 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                    title="编辑个人信息"
+                    className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-[#86868b] hover:bg-white/10 hover:text-white transition-all"
+                    title="设置"
                   >
-                      <Edit2 className="w-4 h-4" />
+                      <Settings className="w-4 h-4" />
                   </button>
 
                   <div className="flex items-center gap-4 mb-6">
@@ -567,7 +583,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                           }
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-12 h-16 rounded bg-gradient-to-br ${BOOK_COLORS[item.book.id % BOOK_COLORS.length]} flex-shrink-0 shadow-lg`}></div>
+                            <div className={`w-16 h-16 rounded bg-gradient-to-br ${BOOK_COLORS[item.book.id % BOOK_COLORS.length]} flex-shrink-0 shadow-lg`}></div>
                             <div>
                               <h4 className="font-medium text-white text-sm line-clamp-1">{item.book.title}</h4>
                               <p className="text-xs text-[#86868b]">{item.book.author}</p>
@@ -682,7 +698,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                               style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.05}s forwards`, opacity: 0 }}
                           >
                               {/* Cover */}
-                              <div className={`w-48 h-48 rounded-2xl bg-gradient-to-br ${BOOK_COLORS[book.id % BOOK_COLORS.length]} relative overflow-hidden shadow-inner mb-4 group-hover:shadow-2xl transition-all duration-500`}>
+                              <div className={`w-full h-48 rounded-2xl bg-gradient-to-br ${BOOK_COLORS[book.id % BOOK_COLORS.length]} relative overflow-hidden shadow-inner mb-4 group-hover:shadow-2xl transition-all duration-500`}>
                                   <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40 mix-blend-overlay"></div>
                                   <div className="absolute inset-0 flex items-center justify-center p-4">
                                       <span className="font-bold text-white/80 text-center text-lg leading-tight drop-shadow-lg">
@@ -702,7 +718,8 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                                       <span className="text-[10px] text-[#0071e3] bg-[#0071e3]/10 px-1.5 py-0.5 rounded border border-[#0071e3]/20 font-bold">{book.tag}</span>
                                   </div>
                                   <h3 className="text-white font-bold text-base truncate mb-1 group-hover:text-[#5ac8fa] transition-colors">{book.title}</h3>
-                                  <p className="text-[#86868b] text-xs mb-3">{book.author}</p>
+                                  <p className="text-[#86868b] text-xs mb-1">{book.author}</p>
+                                  <p className="text-[#666] text-xs mb-3">{formatPublishDate(book.publish_time)}</p>
                                   
                                   <div className="mt-auto flex items-center justify-between">
                                       <span className="text-white font-semibold">¥{book.price.toFixed(2)}</span>

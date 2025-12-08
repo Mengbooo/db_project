@@ -283,6 +283,7 @@ export const getAllBooks = () => {
       b.price,
       b.publish,
       b.stock,
+      b.time as publish_time,
       GROUP_CONCAT(w.writer, ', ') as author,
       CASE 
         WHEN b.keyword LIKE '%技术%' OR b.keyword LIKE '%计算机%' THEN '技术'

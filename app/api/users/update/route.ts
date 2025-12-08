@@ -12,7 +12,8 @@ export async function PUT(request: Request) {
       address, 
       creditLevel,
       balance,
-      password // 新增密码字段
+      password, // 新增密码字段
+      avatar_url // 新增头像URL字段
     } = await request.json();
 
     // 验证必需字段
@@ -88,6 +89,11 @@ export async function PUT(request: Request) {
       if (balance !== undefined) {
         profileUpdate.push('balance = ?');
         profileValues.push(balance);
+      }
+      
+      if (avatar_url !== undefined) {
+        profileUpdate.push('avatar_url = ?');
+        profileValues.push(avatar_url || null);
       }
       
       // 如果有要更新的字段，则执行更新

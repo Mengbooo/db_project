@@ -27,7 +27,8 @@ import {
   X,
   Link,
   Eye,
-  EyeOff
+  EyeOff,
+  LogOut
 } from 'lucide-react';
 
 // 定义用户类型
@@ -177,7 +178,7 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
-          // avatar_url 可以在未来添加到 API
+          avatar_url: formData.avatarUrl
         }),
       });
       
@@ -361,6 +362,16 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
     }
   };
 
+  // 退出登录
+  const handleLogout = () => {
+    toast.success('退出登录成功');
+    // 清除本地存储的用户信息（如果有）
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+    // 跳转到登录页面
+    router.push('/auth');
+  };
+
   // 生成16位会员编号（基于 userId）
   const getMembershipNumber = (userId: number) => {
     return userId.toString().padStart(16, '0');
@@ -434,7 +445,7 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
       </div>
 
       {/* --- Main Container --- */}
-      <div className="relative z-10 w-full max-w-[1200px] h-[85vh] bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-fade-in-up ring-1 ring-white/10">
+      <div className="relative z-10 w-full max-w-[1600px] h-[85vh] bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/[0.08] rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-fade-in-up ring-1 ring-white/10">
           
           {/* === Sidebar === */}
           <aside className="w-full md:w-72 bg-black/20 border-r border-white/[0.05] flex flex-col p-6 backdrop-blur-md">
@@ -493,6 +504,17 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
                     onClick={() => setActiveTab('notifications')} 
                   />
               </nav>
+              
+              {/* 退出登录按钮 */}
+              <div className="mt-auto pt-6 border-t border-white/5">
+                  <button
+                      onClick={handleLogout}
+                      className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/30 px-4 py-3 rounded-xl font-medium transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                      <LogOut className="w-4 h-4" />
+                      退出登录
+                  </button>
+              </div>
           </aside>
 
           {/* === Content Area === */}
