@@ -1,7 +1,8 @@
 import { Resend } from 'resend';
 
 // 初始化 Resend 客户端
-const resend = new Resend(process.env.RESEND_API_KEY);
+// 在构建时使用占位符，运行时使用实际的 API Key
+const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_for_build');
 
 // 邮件发送者配置
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -23,6 +24,12 @@ export async function sendEmail({
   replyTo?: string;
 }) {
   try {
+    // 验证 API Key 是否存在（仅在运行时）
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_placeholder_for_build') {
+      console.warn('警告：Resend API Key 未配置，邮件发送将失败');
+      throw new Error('Resend API Key 未配置，请在 .env.local 中设置 RESEND_API_KEY');
+    }
+
     const result = await resend.emails.send({
       from: FROM_EMAIL,
       to,
