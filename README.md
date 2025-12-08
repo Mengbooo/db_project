@@ -1,10 +1,8 @@
 <div align="center">
-  <img src="./public/logo.svg" alt="网上书店管理系统" width="200"/>
-  <h1>网上书店管理系统</h1>
+  <img src="./public/logo.svg" alt="iBookStore" width="300"/>
+  <h1>iBookStore</h1>
   <p>基于 Next.js + SQLite 的全栈图书管理平台</p>
 </div>
-
----
 
 ## 📋 项目简介
 
