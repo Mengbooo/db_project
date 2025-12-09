@@ -1190,10 +1190,6 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                   </div>
 
                   <div className="flex items-center gap-4">
-                       <button className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors relative">
-                          <Bell className="w-4 h-4 text-[#86868b]" />
-                          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-[#1c1c1e]"></span>
-                       </button>
                   </div>
               </header>
 
