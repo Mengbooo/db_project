@@ -57,7 +57,7 @@ export async function sendEmail({
  */
 export async function sendWelcomeEmail(email: string, username: string) {
   const subject = '欢迎加入 ibookstore';
-  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
+  const logoUrl = `https://s3.bmp.ovh/imgs/2025/12/09/aed2fd6ff39cc2b0.png`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -324,7 +324,7 @@ export async function sendOrderStatusEmail(
     '派送中': '🚚',
   };
 
-  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
+  const logoUrl = `https://s3.bmp.ovh/imgs/2025/12/09/aed2fd6ff39cc2b0.png`;
   const html = `
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -558,7 +558,7 @@ export async function sendSupplierPurchaseNotificationEmail(
   purchaseOrderId: string,
   type: 'purchase' | 'restock' | 'contact' = 'purchase'
 ) {
-  const logoUrl = `https://raw.githubusercontent.com/Mengbooo/db_project/7dff849ae31608c0c8e25e4f08b97ff50104fc59/public/logo.svg`;
+  const logoUrl = `https://s3.bmp.ovh/imgs/2025/12/09/aed2fd6ff39cc2b0.png`;
   
   // 根据类型确定邮件内容
   let title = '新的采购单通知';
