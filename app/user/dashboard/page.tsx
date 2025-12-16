@@ -332,13 +332,24 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
       return;
     }
 
+    // 为 user 属性设置默认值，避免 null 或 undefined 错误
+    const userBalance = user?.balance ?? 0;
+    const userCreditLevel = user?.creditLevel ?? 1;
+
     const originalTotal = cart.reduce((total, item) => total + (item.book.price * item.quantity), 0);
-    const discountRate = getDiscountRate(user.creditLevel);
+    const discountRate = getDiscountRate(userCreditLevel);
     const totalAmount = originalTotal * (1 - discountRate);
 
     // 检查余额
-    if (user.balance < totalAmount) {
-      toast.error(`余额不足！当前余额：¥${user.balance.toFixed(2)}，需要：¥${totalAmount.toFixed(2)}`);
+    if (userBalance < totalAmount) {
+      toast.error(`余额不足！当前余额：¥${userBalance.toFixed(2)}，需要：¥${totalAmount.toFixed(2)}`, {
+        action: {
+          label: '前往个人面板中充值',
+          onClick: () => router.push(`/user/profile?userId=${userId}`)
+        },
+        duration: 5000,
+        icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+      });
       return;
     }
 
@@ -375,7 +386,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
       // 订单创建成功
       toast.success('订单创建成功！', {
         icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
-        description: `已扣除 ¥${totalAmount.toFixed(2)}，剩余余额：¥${result.remainingBalance.toFixed(2)}`
+        description: `已扣除 ¥${totalAmount.toFixed(2)}，剩余余额：¥${result.remainingBalance !== undefined ? result.remainingBalance.toFixed(2) : '未知'}`
       });
 
       // 清空购物车
@@ -707,7 +718,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                               style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.05}s forwards`, opacity: 0 }}
                           >
                               {/* Cover */}
-                              <div className={`w-full h-48 rounded-2xl bg-gradient-to-br ${BOOK_COLORS[book.id % BOOK_COLORS.length]} relative overflow-hidden shadow-inner mb-4 group-hover:shadow-2xl transition-all duration-500`}>
+                              <div className={`w-full h-48 rounded-2xl bg-gradient-to-br ${BOOK_COLORS[book.id % BOOK_COLORS.length]} relative overflow-hidden shadow-inner mb-4 group-hover:shadow-2xl transition-all`}>
                                   <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40 mix-blend-overlay"></div>
                                   <div className="absolute inset-0 flex items-center justify-center p-4">
                                       <span className="font-bold text-white/80 text-center text-lg leading-tight drop-shadow-lg">
