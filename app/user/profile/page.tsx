@@ -437,7 +437,7 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
             onClick={() => router.push(`/user/dashboard?userId=${userId}`)}
             className="mt-4 px-4 py-2 bg-[#0071e3] text-white rounded-lg hover:bg-[#0062c3] transition-colors"
           >
-            返回仪表盘
+            返回主页
           </button>
         </div>
       </div>
@@ -489,7 +489,7 @@ export default function ProfilePage({ searchParams }: { searchParams: Promise<{ 
                 className="flex items-center gap-2 text-[#86868b] hover:text-white transition-colors mb-8 group"
               >
                   <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                  <span className="font-medium">返回仪表盘</span>
+                  <span className="font-medium">返回主页</span>
               </button>
 
               {/* User Snapshot */}

@@ -76,6 +76,7 @@ interface Order {
   supplierEmail?: string; // 供应商邮箱
   quantity: number; // 数量
   status: string;
+  linkedOrderId?: string | null; // 关联的订单ID（仅采购单使用）
   // 以下为纳入争章的旧字段（可保或不用）
   customer?: string;
   date?: string;
@@ -175,15 +176,19 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   // Restock Modal State
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [restockItemId, setRestockItemId] = useState<number | null>(null);
-  const [restockQuantity, setRestockQuantity] = useState(10);
+  const [restockQuantity, setRestockQuantity] = useState<number | "">(10);
   
   // Quick Purchase Modal State
   const [isQuickPurchaseModalOpen, setIsQuickPurchaseModalOpen] = useState(false);
   const [quickPurchaseBookId, setQuickPurchaseBookId] = useState<number | null>(null);
-  const [quickPurchaseQuantity, setQuickPurchaseQuantity] = useState(1);
+  const [quickPurchaseQuantity, setQuickPurchaseQuantity] = useState<number | "">(1);
   
   // Supplier Notification State
   const [notificationSupplier, setNotificationSupplier] = useState<string | null>(null);
+
+  // Delete Confirmation Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: string | number; type: string; name?: string} | null>(null);
 
   // 退出登录函数
   const handleLogout = () => {
@@ -254,6 +259,13 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   };
 
   // --- Actions ---
+  // 打开删除确认弹窗
+  const openDeleteConfirmation = (id: string | number, type: string, name?: string) => {
+    setDeleteTarget({ id, type, name });
+    setIsDeleteModalOpen(true);
+  };
+
+  // 执行删除操作
   const handleDelete = async (id: string | number, type: string) => {
     if (type === 'books') {
       try {
@@ -533,15 +545,10 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
         toast.error('更新供应商信息时发生错误');
       }
     } else if (activeTab === 'users' && editingItem) {
-      // 用户编辑逻辑
+      // 用户编辑逻辑 - 仅允许修改会员等级和余额
       const formData = new FormData(e.target as HTMLFormElement);
       const userData = {
         id: (editingItem as User).id,
-        full_name: formData.get('full_name') as string,
-        username: formData.get('username') as string,
-        email: formData.get('email') as string,
-        phone: formData.get('phone') as string,
-        address: formData.get('address') as string,
         creditLevel: parseInt(formData.get('creditLevel') as string),
         balance: parseFloat(formData.get('balance') as string)
       };
@@ -958,7 +965,14 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
   const handleRestockSubmit = async () => {
     if (!restockItemId) return;
     
-    if (isNaN(restockQuantity) || restockQuantity <= 0) {
+    // 检查是否为空值
+    if (restockQuantity === "" || restockQuantity === 0) {
+      toast.error("请输入有效的补货数量");
+      return;
+    }
+    
+    // 检查是否为有效数字
+    if (typeof restockQuantity === "number" && (isNaN(restockQuantity) || restockQuantity <= 0)) {
       toast.error("请输入有效的补货数量");
       return;
     }
@@ -1368,6 +1382,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">供应商邮箱</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">数量</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">状态</th>
+                                      <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider">关联订单</th>
                                       <th className="p-5 text-xs font-medium text-[#86868b] uppercase tracking-wider text-center">操作</th>
                                   </tr>
                               </thead>
@@ -1393,6 +1408,16 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPurchaseStatusColor(order.status)}`}>
                                               {order.status}
                                             </span>
+                                          </td>
+                                          <td className="p-5 text-sm text-gray-300">
+                                            {order.linkedOrderId ? (
+                                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono text-xs">
+                                                <ShoppingCart className="w-3.5 h-3.5" />
+                                                {order.linkedOrderId}
+                                              </span>
+                                            ) : (
+                                              <span className="text-gray-500 text-xs">手动采购</span>
+                                            )}
                                           </td>
                                           <td className="p-5 text-center">
                                               <div className="flex items-center justify-center gap-2">
@@ -1423,7 +1448,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                                   </button>
                                                 )}
                                                 <button
-                                                  onClick={() => handleDelete(order.id, 'purchaseOrders')}
+                                                  onClick={() => openDeleteConfirmation(order.id, 'purchaseOrders', `采购单 ${order.id}`)}
                                                   className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
                                                   title="删除采购单"
                                                 >
@@ -1515,7 +1540,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 text-sm text-gray-300 max-w-[100px] truncate" title={book.supplier}>{book.supplier}</td>
                                       <td className="p-5 text-sm text-gray-300 whitespace-nowrap">{book.publishDate}</td>
                                       <td className="p-5 text-center">
-                                          <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => handleDelete(book.id, 'books')} />
+                                          <ActionButtons onEdit={() => handleEdit(book)} onRestock={() => handleRestock(book.id)} onDelete={() => openDeleteConfirmation(book.id, 'books', book.title)} />
                                       </td>
                                   </TableRow>
                               ))}
@@ -1534,7 +1559,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 whitespace-nowrap"><StatusBadge status={order.status} /></td>
                                       <td className="p-5 text-sm text-gray-300 max-w-xs truncate" title={order.shippingAddress || '未设置'}>{order.shippingAddress || '未设置'}</td>
                                       <td className="p-5 text-center">
-                                          <ActionButtons onEdit={() => handleEdit(order)} onDelete={() => handleDelete(order.id, 'orders')} />
+                                          <ActionButtons onEdit={() => handleEdit(order)} onDelete={() => openDeleteConfirmation(order.id, 'orders', `订单 ${order.id}`)} />
                                       </td>
                                   </TableRow>
                               ))}
@@ -1561,7 +1586,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 text-sm text-gray-400 max-w-[120px] truncate" title={user.profile_address}>{user.profile_address}</td>
                                       <td className="p-5 text-sm font-medium text-white whitespace-nowrap">¥{user.balance?.toFixed(2) || '0.00'}</td>
                                       <td className="p-5 text-center">
-                                          <ActionButtons onEdit={() => handleEdit(user)} onDelete={() => handleDelete(user.id, 'users')} />
+                                          <ActionButtons onEdit={() => handleEdit(user)} onDelete={() => openDeleteConfirmation(user.id, 'users', user.full_name || user.username)} />
                                       </td>
                                   </TableRow>
                               ))}
@@ -1595,7 +1620,7 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                                       <td className="p-5 text-center">
                                           <ActionButtons 
                                             onEdit={() => handleEdit(supplier)} 
-                                            onDelete={() => handleDelete(supplier.id, 'suppliers')}
+                                            onDelete={() => openDeleteConfirmation(supplier.id, 'suppliers', supplier.name)}
                                             onNotify={() => handleNotifyRestock(supplier.id, supplier.name, supplier.email)}
                                             isSupplier={true}
                                           />
@@ -2053,124 +2078,220 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         </div>
                       </>
                     ) : activeTab === 'users' ? (
-                      // 用户信息表单
+                      // 用户信息表单 - 编辑时仅允许修改会员等级和余额
                       <>
-                        <div className="space-y-2">
-                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">姓名</label>
-                          <input 
-                            type="text" 
-                            name="full_name"
-                            defaultValue={
-                              editingItem && 'full_name' in editingItem ? editingItem.full_name as string : ''
-                            } 
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                            placeholder="请输入姓名" 
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">用户名 {!editingItem && '*'}</label>
-                            <input 
-                              type="text" 
-                              name="username"
-                              defaultValue={
-                                editingItem && 'username' in editingItem ? editingItem.username as string : ''
-                              } 
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                              placeholder="请输入用户名"
-                              required={!editingItem}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">邮箱 {!editingItem && '*'}</label>
-                            <input 
-                              type="email" 
-                              name="email"
-                              defaultValue={
-                                editingItem && 'email' in editingItem ? editingItem.email as string : ''
-                              } 
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                              placeholder="请输入邮箱" 
-                              required={!editingItem}
-                            />
-                          </div>
-                        </div>
-                        
-                        {!editingItem && (
-                          <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">密码</label>
-                            <input 
-                              type="password" 
-                              name="password"
-                              defaultValue="123456"
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                              placeholder="默认密码: 123456" 
-                            />
-                          </div>
+                        {editingItem ? (
+                          // 编辑用户 - 其他字段只读
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">姓名（只读）</label>
+                              <input 
+                                type="text" 
+                                defaultValue={
+                                  'full_name' in editingItem ? editingItem.full_name as string : ''
+                                } 
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                                disabled
+                                readOnly
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">用户名（只读）</label>
+                                <input 
+                                  type="text" 
+                                  defaultValue={
+                                    'username' in editingItem ? editingItem.username as string : ''
+                                  } 
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                                  disabled
+                                  readOnly
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">邮箱（只读）</label>
+                                <input 
+                                  type="email" 
+                                  defaultValue={
+                                    'email' in editingItem ? editingItem.email as string : ''
+                                  } 
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                                  disabled
+                                  readOnly
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">电话（只读）</label>
+                                <input 
+                                  type="text" 
+                                  defaultValue={
+                                    'phone' in editingItem ? editingItem.phone as string : ''
+                                  } 
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                                  disabled
+                                  readOnly
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">地址（只读）</label>
+                                <input 
+                                  type="text" 
+                                  defaultValue={
+                                    'profile_address' in editingItem ? editingItem.profile_address as string : ''
+                                  } 
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" 
+                                  disabled
+                                  readOnly
+                                />
+                              </div>
+                            </div>
+
+                            {/* 分隔线 */}
+                            <div className="border-t border-white/10 pt-4 mt-2">
+                              <p className="text-xs text-[#86868b] mb-4">✏️ 以下字段可编辑</p>
+                            </div>
+                            
+                            {/* 可编辑字段：会员等级和余额 */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">会员等级</label>
+                                <select 
+                                  name="creditLevel"
+                                  defaultValue={
+                                    'creditLevel' in editingItem ? (editingItem.creditLevel as number).toString() : '1'
+                                  }
+                                  className="w-full bg-black/30 border border-[#0071e3]/50 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                                  style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                                    backgroundPosition: 'right 1rem center'
+                                  }}
+                                >
+                                  <option value="1" className="bg-[#1d1d1f] text-white py-2">🅰️ 普通会员</option>
+                                  <option value="2" className="bg-[#1d1d1f] text-white py-2">🥈 银卡会员</option>
+                                  <option value="3" className="bg-[#1d1d1f] text-white py-2">🥇 金卡会员</option>
+                                  <option value="4" className="bg-[#1d1d1f] text-white py-2">⭐ 白金会员</option>
+                                  <option value="5" className="bg-[#1d1d1f] text-white py-2">💎 钻石会员</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">余额</label>
+                                <input 
+                                  type="number" 
+                                  name="balance"
+                                  step="0.01"
+                                  defaultValue={
+                                    'balance' in editingItem ? (editingItem.balance as number).toString() : '0'
+                                  } 
+                                  className="w-full bg-black/30 border border-[#0071e3]/50 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                                  placeholder="请输入余额" 
+                                />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          // 新增用户 - 所有字段可编辑
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">姓名</label>
+                              <input 
+                                type="text" 
+                                name="full_name"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                placeholder="请输入姓名" 
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">用户名 *</label>
+                                <input 
+                                  type="text" 
+                                  name="username"
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                  placeholder="请输入用户名"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">邮箱 *</label>
+                                <input 
+                                  type="email" 
+                                  name="email"
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                  placeholder="请输入邮箱" 
+                                  required
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">密码</label>
+                              <input 
+                                type="password" 
+                                name="password"
+                                defaultValue="123456"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                placeholder="默认密码: 123456" 
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">电话</label>
+                                <input 
+                                  type="text" 
+                                  name="phone"
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                  placeholder="请输入电话号码" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">会员等级</label>
+                                <select 
+                                  name="creditLevel"
+                                  defaultValue="1"
+                                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                                  style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                                    backgroundPosition: 'right 1rem center'
+                                  }}
+                                >
+                                  <option value="1" className="bg-[#1d1d1f] text-white py-2">🅰️ 普通会员</option>
+                                  <option value="2" className="bg-[#1d1d1f] text-white py-2">🥈 银卡会员</option>
+                                  <option value="3" className="bg-[#1d1d1f] text-white py-2">🥇 金卡会员</option>
+                                  <option value="4" className="bg-[#1d1d1f] text-white py-2">⭐ 白金会员</option>
+                                  <option value="5" className="bg-[#1d1d1f] text-white py-2">💎 钻石会员</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">地址</label>
+                              <input 
+                                type="text" 
+                                name="address"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
+                                placeholder="请输入地址" 
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">余额</label>
+                              <input 
+                                type="number" 
+                                name="balance"
+                                step="0.01"
+                                defaultValue="0"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
+                                placeholder="请输入余额" 
+                              />
+                            </div>
+                          </>
                         )}
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">电话</label>
-                            <input 
-                              type="text" 
-                              name="phone"
-                              defaultValue={
-                                editingItem && 'phone' in editingItem ? editingItem.phone as string : ''
-                              } 
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                              placeholder="请输入电话号码" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">会员等级</label>
-                            <select 
-                              name="creditLevel"
-                              defaultValue={
-                                editingItem && 'creditLevel' in editingItem ? (editingItem.creditLevel as number).toString() : '1'
-                              }
-                              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all duration-200 hover:border-white/20 cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
-                              style={{
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                                backgroundPosition: 'right 1rem center'
-                              }}
-                            >
-                              <option value="1" className="bg-[#1d1d1f] text-white py-2">🅰️ 普通会员</option>
-                              <option value="2" className="bg-[#1d1d1f] text-white py-2">🥈 银卡会员</option>
-                              <option value="3" className="bg-[#1d1d1f] text-white py-2">🥇 金卡会员</option>
-                              <option value="4" className="bg-[#1d1d1f] text-white py-2">⭐ 白金会员</option>
-                              <option value="5" className="bg-[#1d1d1f] text-white py-2">💎 钻石会员</option>
-                            </select>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">地址</label>
-                          <input 
-                            type="text" 
-                            name="address"
-                            defaultValue={
-                              editingItem && 'profile_address' in editingItem ? editingItem.profile_address as string : ''
-                            } 
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors" 
-                            placeholder="请输入地址" 
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-xs text-[#86868b] uppercase font-bold tracking-wider">余额</label>
-                          <input 
-                            type="number" 
-                            name="balance"
-                            step="0.01"
-                            defaultValue={
-                              editingItem && 'balance' in editingItem ? (editingItem.balance as number).toString() : '0'
-                            } 
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
-                            placeholder="请输入余额" 
-                          />
-                        </div>
                       </>
                     ) : (
                       // 其他tab的默认表单
@@ -2247,7 +2368,17 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         <input 
                           type="number" 
                           value={restockQuantity}
-                          onChange={(e) => setRestockQuantity(parseInt(e.target.value) || 0)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              setRestockQuantity("");
+                            } else {
+                              const numValue = parseInt(value);
+                              if (!isNaN(numValue)) {
+                                setRestockQuantity(numValue);
+                              }
+                            }
+                          }}
                           className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
                           placeholder="请输入补货数量" 
                           min="1"
@@ -2285,7 +2416,17 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         <input 
                           type="number" 
                           value={quickPurchaseQuantity}
-                          onChange={(e) => setQuickPurchaseQuantity(parseInt(e.target.value) || 1)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              setQuickPurchaseQuantity("");
+                            } else {
+                              const numValue = parseInt(value);
+                              if (!isNaN(numValue)) {
+                                setQuickPurchaseQuantity(numValue);
+                              }
+                            }
+                          }}
                           className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#0071e3] outline-none transition-colors hide-spinners" 
                           placeholder="请输入采购数量" 
                           min="1"
@@ -2297,7 +2438,20 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                         <button 
                           type="button" 
                           onClick={async () => {
-                            if (!quickPurchaseBookId || quickPurchaseQuantity <= 0) {
+                            // 检查是否选择了图书
+                            if (!quickPurchaseBookId) {
+                              toast.error('请选择一本图书');
+                              return;
+                            }
+                            
+                            // 检查数量是否为空
+                            if (quickPurchaseQuantity === "" || quickPurchaseQuantity === 0) {
+                              toast.error('请输入有效的采购数量');
+                              return;
+                            }
+                            
+                            // 检查数量是否为有效数字
+                            if (typeof quickPurchaseQuantity === "number" && (isNaN(quickPurchaseQuantity) || quickPurchaseQuantity <= 0)) {
                               toast.error('请输入有效的采购数量');
                               return;
                             }
@@ -2333,6 +2487,61 @@ export default function AdminDashboard({ searchParams }: { searchParams: Promise
                             <Save className="w-4 h-4" /> 确认采购
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && deleteTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-[#1d1d1f] rounded-3xl shadow-2xl border border-white/10 p-8 w-full max-w-md animate-fade-in-up">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                        <AlertCircle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-semibold text-white">确认删除</h3>
+                        <p className="text-sm text-gray-400 mt-1">此操作不可恢复</p>
+                    </div>
+                </div>
+
+                <div className="bg-white/5 rounded-2xl p-4 mb-6">
+                    <p className="text-gray-300 text-sm">
+                        您确定要删除{' '}
+                        <span className="font-semibold text-white">
+                            {deleteTarget.name || `ID: ${deleteTarget.id}`}
+                        </span>
+                        {' '}吗?
+                    </p>
+                    <p className="text-gray-400 text-xs mt-2">
+                        删除后相关数据将无法恢复,请谨慎操作。
+                    </p>
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => {
+                            setIsDeleteModalOpen(false);
+                            setDeleteTarget(null);
+                        }}
+                        className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors font-medium border border-white/10"
+                    >
+                        取消
+                    </button>
+                    <button
+                        onClick={async () => {
+                            if (deleteTarget) {
+                                await handleDelete(deleteTarget.id, deleteTarget.type);
+                                setIsDeleteModalOpen(false);
+                                setDeleteTarget(null);
+                            }
+                        }}
+                        className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        确认删除
+                    </button>
                 </div>
             </div>
         </div>
@@ -2435,13 +2644,9 @@ function ActionButtons({ onEdit, onDelete, onRestock, onNotify, isSupplier }: {
                 <button 
                     onClick={onRestock} 
                     className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/30 hover:shadow-lg hover:shadow-green-500/20 transition-all"
-                    title="补货"
+                    title="通知补货"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2v20" />
-                        <path d="M8 10l4-4 4 4" />
-                        <path d="M8 18l4 4 4-4" />
-                    </svg>
+                    <Mail className="w-4 h-4" />
                 </button>
             )}
             {onNotify && isSupplier && (
@@ -2450,9 +2655,7 @@ function ActionButtons({ onEdit, onDelete, onRestock, onNotify, isSupplier }: {
                     className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#86868b] hover:bg-orange-500/20 hover:text-orange-400 hover:border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20 transition-all"
                     title="通知补货"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
+                    <Mail className="w-4 h-4" />
                 </button>
             )}
             <button 

@@ -332,6 +332,19 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
       return;
     }
 
+    // 检查用户是否已完善个人信息（地址和电话）
+    if (!user.profile_address || user.profile_address.trim() === '' || !user.phone || user.phone.trim() === '') {
+      toast.error('请先完善个人信息（地址和电话）后再进行购买', {
+        action: {
+          label: '完善信息',
+          onClick: () => router.push(`/user/profile?userId=${userId}`)
+        },
+        duration: 5000,
+        icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+      });
+      return;
+    }
+
     // 为 user 属性设置默认值，避免 null 或 undefined 错误
     const userBalance = user?.balance ?? 0;
     const userCreditLevel = user?.creditLevel ?? 1;
@@ -521,7 +534,7 @@ export default function Dashboard({ searchParams }: { searchParams: Promise<{ us
                               <div className="flex items-center justify-between text-xs text-[#86868b] mt-3">
                                   <div className="flex flex-col gap-0.5">
                                       <span className="font-mono text-white/40">#{item.orderId}</span>
-                                      <span>{new Date(item.date.toString()).toLocaleDateString('zh-CN')}</span>
+                                      <span>{new Date(item.date * 1000).toLocaleDateString('zh-CN')}</span>
                                   </div>
                                   <div className="p-1.5 rounded-full bg-white/5 text-[#86868b] group-hover:text-white group-hover:bg-[#0071e3] transition-all">
                                       {getStatusIcon(item.status)}

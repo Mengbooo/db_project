@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const tickets: any[] = getTickets();
     const suppliers: any[] = getSuppliers();
     
-    // 获取采购单数据（含有书名、供应商、供应商邮箱）
+    // 获取采购单数据（含有书名、供应商、供应商邮箱、关联的订单ID）
     const dbForPurchase = getDatabase();
     const purchaseOrders: any[] = dbForPurchase.prepare(`
       SELECT 
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
         p.book_id,
         p.quantity,
         p.status,
+        p.ticket_id,
         b.name as book_name,
         b.supplier as supplier_name,
         s.email as supplier_email
@@ -163,7 +164,8 @@ export async function GET(request: Request) {
         supplier: purchase.supplier_name || '未设置',
         supplierEmail: purchase.supplier_email || '未设置',
         quantity: purchase.quantity,
-        status: purchase.status || '待处理'
+        status: purchase.status || '待处理',
+        linkedOrderId: purchase.ticket_id ? `ORD-${purchase.ticket_id.toString().padStart(4, '0')}` : null // 关联的订单ID
       }))
     });
   } catch (error) {
